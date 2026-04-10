@@ -1,4 +1,5 @@
 const TelegramBot = require("node-telegram-bot-api");
+const express = require("express");
 const PDFParser = require("pdf2json");
 const axios = require("axios");
 const fs = require("fs");
@@ -8,8 +9,59 @@ require("dotenv").config();
 
 // ================= BOT =================
 const bot = new TelegramBot(process.env.BOT_TOKEN, {
-  polling: true
+  polling: false
 });
+
+// 🌐 Dummy server for Render
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+app.get("/", (req, res) => {
+  res.send("🤖 Bot is running");
+});
+
+app.get("/health", (req, res) => {
+  res.send("OK");
+});
+
+app.listen(PORT, () => {
+  console.log(`🌐 Server running on port ${PORT}`);
+});
+
+// ⏳ Safe polling start (fix 409)
+async function startBot() {
+  try {
+    const token = process.env.BOT_TOKEN;
+
+    console.log("🧹 Cleaning old Telegram sessions (HTTP)...");
+
+    // ✅ 1. Delete webhook
+    await axios.get(`https://api.telegram.org/bot${token}/deleteWebhook`);
+
+    // ✅ 2. Clear pending updates
+    await axios.get(`https://api.telegram.org/bot${token}/getUpdates`, {
+      params: { offset: -1 }
+    });
+
+    console.log("⏳ Waiting before starting polling...");
+
+    // ⏳ Delay (Render safe)
+    await new Promise(res => setTimeout(res, 8000));
+
+    // ✅ Start polling
+    await bot.startPolling({
+      interval: 300,
+      params: { timeout: 10 }
+    });
+
+    console.log("✅ Polling started safely");
+
+  } catch (err) {
+    console.error("❌ Startup error:", err.message);
+  }
+}
+
+startBot();
 
 console.log("🚀 Bot running with MongoDB (Menu + Users)");
 
