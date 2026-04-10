@@ -1,0 +1,37 @@
+{
+  "Monday": {
+    "breakfast": "BESAN CHILLA",
+    "lunch": "Dal, Rice, Papad, Roti, Chaas",
+    "dinner": "Sev Tomato, Masala Khichadi"
+  },
+  "Tuesday": {
+    "breakfast": "MASALA CHANA",
+    "lunch": "Dal, Rice, Papad, Roti, Chaas",
+    "dinner": "Tinde & Red Choli, Ragda Petis"
+  },
+  "Wednesday": {
+    "breakfast": "DUDHI MUTHIYA / WHITE DHOKLA",
+    "lunch": "Dal, Rice, Papad, Roti, Chaas",
+    "dinner": "Bhindi, Dal Tadka, Jeera Rice"
+  },
+  "Thursday": {
+    "breakfast": "MEGGI",
+    "lunch": "Dal, Rice, Papad, Roti, Chaas",
+    "dinner": "Corn Capsicum, Dal Bati"
+  },
+  "Friday": {
+    "breakfast": "POHA",
+    "lunch": "Dal, Rice, Papad, Roti, Chaas",
+    "dinner": "Lasaniya Aloo, Kadhi Khichadi"
+  },
+  "Saturday": {
+    "breakfast": "MASALA THEPLA",
+    "lunch": "Dal, Rice, Papad, Roti, Chaas",
+    "dinner": "Gobi Patta, Chinese"
+  },
+  "Sunday": {
+    "breakfast": "ALU VADA",
+    "lunch": "Paneer Sabji, Sweet, Dal, Rice, Papad, Roti, Chaas",
+    "dinner": null
+  }
+}
