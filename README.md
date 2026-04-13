@@ -2,16 +2,10 @@
 
 A powerful **Telegram-based canteen menu automation bot** designed for students and employees. It streamlines the process of checking daily menus, provides automated meal reminders, and allows administrators to update the entire week's schedule with a single PDF upload.
 
-## 🚀 Features
-
-- **Weekly Menu Persistence**: Upload the menu once per week! The bot intelligently indexes data by Monday's date, ensuring availability throughout the week.
-- **Intelligent PDF Parsing**: Automatically extracts meals (Breakfast, Lunch, Dinner) from canteen menu PDFs.
-- **Formatted Meal Summaries**: Clean, easy-to-read Markdown messages with the date clearly displayed in the header.
-- **Automated Reminders (IST)**:
-  - 🌅 **Breakfast**: 7:00 AM
-  - 🍛 **Lunch**: 11:00 AM
-  - 🍽️ **Dinner**: 8:00 PM
-- **User Control**: Quick toggle Commands to turn reminders ON or OFF.
+- **Personalized Interactivity**: Smart greeting by name and a persistent, "one-tap" interactive menu following every response.
+- **Smart Reminder Toggle**: A dynamic UI that switches between "Turn ON" and "Turn OFF" based on your current preference.
+- **Web Menu Viewer**: A minimalist, mobile-first website to view today's menu in any browser.
+- **Apple Shortcuts API**: Deep system integration via JSON endpoints, allowing menu checks via Siri or iPhone widgets.
 
 ## 🛠️ Tech Stack
 
@@ -50,12 +44,14 @@ A powerful **Telegram-based canteen menu automation bot** designed for students 
 
 ## 📖 Usage
 
-- `/start`: Initialize the bot and register for reminders.
-- `/today`: Get the menu for the current day.
+- `/start`: Personalized onboarding and main menu access.
+- `/today`: Get the menu for the current day with a persistent interactive menu.
 - `/tomorrow`: See what's cooking tomorrow.
-- `/all`: View the full weekly menu at once.
-- `/on` / `/off`: Manage your reminder notifications.
-- **PDF Upload**: Simply send a PDF menu document to the bot to update the database for the current week.
+- `/all`: View the full weekly menu in the minimalist style.
+- `/on` / `/off`: Manage reminders with simple toggle buttons.
+- **Web Menu**: Visit your bot's root URL to view the live, minimalist menu.
+- **Apple Shortcuts**: Use the `/api/today` endpoint to integrate with iOS. (See [Apple Shortcuts Guide](docs/apple-shortcuts.md)).
+- **PDF Upload**: Send any PDF menu to the bot for instant weekly processing.
 
 ---
 Built with the **BMAD Method** for high-velocity, high-quality development.
