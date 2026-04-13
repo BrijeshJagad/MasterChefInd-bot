@@ -187,7 +187,10 @@ function getDay(offset = 0) {
 // ================= MENU DB =================
 function getWeekId() {
   const d = getISTDate(0);
-  return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+  const day = d.getDay(); // 0 (Sun) to 6 (Sat)
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Adjust to Monday
+  const monday = new Date(d.setDate(diff));
+  return `${monday.getFullYear()}-${monday.getMonth() + 1}-${monday.getDate()}`;
 }
 
 async function saveMenu(menu) {
@@ -306,8 +309,13 @@ function buildMenuFromColumns(rows, dayRows, headers, days) {
   }
 
   anchors.forEach(a=>{
+    const breakfastRaw = grouped[a.day].breakfast.join(", ");
+    const dateMatch = breakfastRaw.match(/\b\d{2}-\d{2}\b/);
+    const date = dateMatch ? dateMatch[0] : "";
+
     menu[a.day]={
-      breakfast: clean(grouped[a.day].breakfast.join(", ")),
+      date: date,
+      breakfast: clean(breakfastRaw),
       lunch: clean(grouped[a.day].lunch.join(", ")),
       dinner: clean(grouped[a.day].dinner.join(", "))
     };
@@ -322,8 +330,13 @@ function buildMenuFromSequentialLines(lines, days) {
     const day=days.find(d=>lines[i].toUpperCase().includes(d));
     if(!day) continue;
 
+    const breakfastRaw = lines[i+1]||"";
+    const dateMatch = breakfastRaw.match(/\b\d{2}-\d{2}\b/);
+    const date = dateMatch ? dateMatch[0] : "";
+
     menu[capitalize(day)]={
-      breakfast: clean(lines[i+1]||""),
+      date: date,
+      breakfast: clean(breakfastRaw),
       lunch: clean((lines[i+2]||"")+" "+(lines[i+3]||"")),
       dinner: clean(lines[i+4]||"")
     };
@@ -332,7 +345,15 @@ function buildMenuFromSequentialLines(lines, days) {
 }
 
 function clean(text){
-  return text.replace(/\s+/g," ").replace(/\s*,\s*/g,", ").replace(/OFF/i,"❌ OFF").trim();
+  return text
+    .replace(/\b\d{2}[-/]\d{2}([-/]\d{2,4})?\b/g, "") // remove dates
+    .replace(/\b(BREAKFAST|LUNCH|DINNER|TIME|TO)\b/gi, "") // remove headers
+    .replace(/\s+/g," ")
+    .replace(/\s*,\s*/g,", ")
+    .replace(/OFF/i,"❌ OFF")
+    .trim()
+    .replace(/^,|,$/g, "")
+    .trim();
 }
 
 function capitalize(w){return w.charAt(0)+w.slice(1).toLowerCase();}
@@ -352,7 +373,7 @@ bot.on("document", async (msg) => {
     const menu = await parseMenuFromPDF("menu.pdf");
     await saveMenu(menu);
 
-    bot.sendMessage(chatId, "✅ Menu saved! Use /today 🍽️");
+    bot.sendMessage(chatId, `✅ *Menu Saved!*\n\n${formatFullMenu(menu)}`, { parse_mode: "Markdown" });
   } catch (err) {
     console.error(err);
     bot.sendMessage(chatId, "❌ Failed to parse PDF.");
@@ -363,7 +384,8 @@ bot.on("document", async (msg) => {
 function formatMenu(day, data) {
   if (!data || !data[day]) return "⚠️ Menu not uploaded yet.";
 
-  return `🍽️ *${day} Menu*
+  const dateStr = data[day].date ? ` (${data[day].date})` : "";
+  return `🍽️ *${day}${dateStr} Menu*
 
 🥞 *Breakfast*
 ${data[day].breakfast || "—"}
@@ -373,6 +395,20 @@ ${data[day].lunch || "—"}
 
 🍽️ *Dinner*
 ${data[day].dinner || "—"}`;
+}
+
+function formatFullMenu(menu) {
+  if (!menu) return "⚠️ No menu uploaded yet.";
+
+  let text = "📅 *Weekly Menu*\n\n";
+  Object.keys(menu).forEach(day => {
+    const dateStr = menu[day].date ? ` (${menu[day].date})` : "";
+    text += `━━━━━━━━━━━━━━━\n📍 *${day}${dateStr}*\n\n`;
+    text += `🥞 *Breakfast*\n${menu[day].breakfast || "—"}\n\n`;
+    text += `🍛 *Lunch*\n${menu[day].lunch || "—"}\n\n`;
+    text += `🍽️ *Dinner*\n${menu[day].dinner || "—"}\n\n`;
+  });
+  return text;
 }
 
 bot.onText(/\/today/, async msg=>{
@@ -388,20 +424,7 @@ bot.onText(/\/tomorrow/, async msg=>{
 
 bot.onText(/\/all/, async msg => {
   const menu = await getMenu();
-  if (!menu) return bot.sendMessage(msg.chat.id, "⚠️ No menu uploaded yet.");
-
-  let text = "📅 *Weekly Menu*\n\n";
-
-  Object.keys(menu).forEach(day => {
-    text += `━━━━━━━━━━━━━━━\n`;
-    text += `📍 *${day}*\n\n`;
-
-    text += `🥞 *Breakfast*\n${menu[day].breakfast}\n\n`;
-    text += `🍛 *Lunch*\n${menu[day].lunch}\n\n`;
-    text += `🍽️ *Dinner*\n${menu[day].dinner}\n\n`;
-  });
-
-  bot.sendMessage(msg.chat.id, text, { parse_mode: "Markdown" });
+  bot.sendMessage(msg.chat.id, formatFullMenu(menu), { parse_mode: "Markdown" });
 });
 
 // ================= REMINDERS =================
