@@ -59,15 +59,15 @@ env.test.local
 env.production.local
 env.local
 .env
-# Temporary PDFs
-*.pdf
-menu.pdf
-# parcel-bundler cache
-cache
-parcel-cache
 # Next.js build output
+.next/
 next
 out
+
+# Temporary PDFs
+temp_*.pdf
+*.pdf
+menu.pdf
 # Nuxt.js build / generate output
 nuxt
 dist
