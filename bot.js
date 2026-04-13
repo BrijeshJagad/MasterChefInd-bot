@@ -101,15 +101,16 @@ bot.on("message", async (msg) => {
   sendMainMenu(chatId);
 });
 
-bot.onText(/\/start/, (msg) => {
+bot.onText(/\/start/, async (msg) => {
   const name = msg.from.first_name || "there";
   const welcomeText = `Hey ${name}! 👋 Welcome to your Canteen Bot. 👨‍🍳
 
 I can help you check what's cooking today and send you automated reminders so you never miss a meal! What would you like to see first?`;
   
+  const keyboard = await sendMainMenu(msg.chat.id, true);
   bot.sendMessage(msg.chat.id, welcomeText, {
     parse_mode: "Markdown",
-    reply_markup: sendMainMenu(msg.chat.id, true) // Pass true to only get the keyboard
+    reply_markup: keyboard
   });
 });
 
@@ -121,35 +122,49 @@ bot.on("callback_query", async (query) => {
 
   if (action === "today") {
     const day = getDay(0);
-    bot.sendMessage(chatId, formatMenu(day, menu), { parse_mode: "Markdown" });
+    bot.sendMessage(chatId, formatMenu(day, menu), { 
+      parse_mode: "Markdown",
+      reply_markup: await sendMainMenu(chatId, true)
+    });
   }
 
   if (action === "tomorrow") {
     const day = getDay(1);
-    bot.sendMessage(chatId,
-      `📅 *Tomorrow*\n\n${formatMenu(day, menu)}`,
-      { parse_mode: "Markdown" }
-    );
+    bot.sendMessage(chatId, `📅 *Tomorrow*\n\n${formatMenu(day, menu)}`, { 
+      parse_mode: "Markdown",
+      reply_markup: await sendMainMenu(chatId, true)
+    });
   }
 
   if (action === "all") {
-    bot.sendMessage(chatId, formatFullMenu(menu), { parse_mode: "Markdown" });
+    bot.sendMessage(chatId, formatFullMenu(menu), { 
+      parse_mode: "Markdown",
+      reply_markup: await sendMainMenu(chatId, true)
+    });
   }
 
   if (action === "on") {
     await User.updateOne({ chatId }, { reminders: true }, { upsert: true });
-    bot.sendMessage(chatId, "🔔 Reminders ON");
+    bot.sendMessage(chatId, "🔔 Notifications turned ON!", {
+      reply_markup: await sendMainMenu(chatId, true)
+    });
   }
 
   if (action === "off") {
     await User.updateOne({ chatId }, { reminders: false }, { upsert: true });
-    bot.sendMessage(chatId, "🔕 Reminders OFF");
+    bot.sendMessage(chatId, "🔕 Notifications turned OFF", {
+      reply_markup: await sendMainMenu(chatId, true)
+    });
   }
 
   bot.answerCallbackQuery(query.id);
 });
 
-function sendMainMenu(chatId, returnKeyboard = false) {
+async function sendMainMenu(chatId, returnKeyboard = false) {
+  const user = await User.findOne({ chatId }) || { reminders: true };
+  const toggleLabel = user.reminders ? "🔕 Turn OFF Notifications" : "🔔 Turn ON Notifications";
+  const toggleAction = user.reminders ? "off" : "on";
+
   const keyboard = {
     inline_keyboard: [
       [
@@ -160,8 +175,7 @@ function sendMainMenu(chatId, returnKeyboard = false) {
         { text: "📋 Full Weekly Plan", callback_data: "all" }
       ],
       [
-        { text: "🔔 Notifications: ON", callback_data: "on" },
-        { text: "🔕 OFF", callback_data: "off" }
+        { text: toggleLabel, callback_data: toggleAction }
       ]
     ]
   };
@@ -183,7 +197,7 @@ function getISTDate(offset = 0) {
 }
 
 function getDay(offset = 0) {
-  const days = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+  const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
   return days[getISTDate(offset).getDay()];
 }
 
@@ -238,7 +252,7 @@ function parseMenuFromPDF(filePath) {
 
 // ================= MENU PARSER =================
 function buildMenu(items) {
-  const days = ["MONDAY","TUESDAY","WEDNESDAY","THURSDAY","FRIDAY","SATURDAY","SUNDAY"];
+  const days = ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY"];
   const rows = groupRows(items);
   const headers = detectHeaders(rows);
 
@@ -255,7 +269,7 @@ function buildMenu(items) {
 
 function groupRows(items) {
   const rows = [];
-  const sorted = [...items].sort((a,b)=>(a.y-b.y)||(a.x-b.x));
+  const sorted = [...items].sort((a, b) => (a.y - b.y) || (a.x - b.x));
 
   for (const item of sorted) {
     const last = rows[rows.length - 1];
@@ -268,8 +282,8 @@ function groupRows(items) {
 
   return rows.map(r => ({
     y: r.y,
-    items: r.items.sort((a,b)=>a.x-b.x),
-    text: r.items.map(i=>i.text).join(" ").trim()
+    items: r.items.sort((a, b) => a.x - b.x),
+    text: r.items.map(i => i.text).join(" ").trim()
   }));
 }
 
@@ -294,7 +308,7 @@ function buildMenuFromColumns(rows, dayRows, headers, days) {
     return { day: capitalize(days.find(d => item.text.toUpperCase().includes(d))), y: item.y };
   });
 
-  const grouped = Object.fromEntries(anchors.map(a => [a.day,{breakfast:[],lunch:[],dinner:[]}]));
+  const grouped = Object.fromEntries(anchors.map(a => [a.day, { breakfast: [], lunch: [], dinner: [] }]));
 
   for (const row of rows) {
     if (/TIME/i.test(row.text)) break;
@@ -302,21 +316,21 @@ function buildMenuFromColumns(rows, dayRows, headers, days) {
     for (const item of row.items) {
       if (days.some(d => item.text.toUpperCase().includes(d))) continue;
 
-      const day = anchors.reduce((p,c)=>Math.abs(c.y-item.y)<Math.abs(p.y-item.y)?c:p);
-      const col = ["breakfast","lunch","dinner"].reduce((p,c)=>
-        Math.abs(item.x-headers[c])<Math.abs(item.x-headers[p])?c:p
+      const day = anchors.reduce((p, c) => Math.abs(c.y - item.y) < Math.abs(p.y - item.y) ? c : p);
+      const col = ["breakfast", "lunch", "dinner"].reduce((p, c) =>
+        Math.abs(item.x - headers[c]) < Math.abs(item.x - headers[p]) ? c : p
       );
 
       grouped[day.day][col].push(item.text);
     }
   }
 
-  anchors.forEach(a=>{
+  anchors.forEach(a => {
     const breakfastRaw = grouped[a.day].breakfast.join(", ");
     const dateMatch = breakfastRaw.match(/\b\d{2}-\d{2}\b/);
     const date = dateMatch ? dateMatch[0] : "";
 
-    menu[a.day]={
+    menu[a.day] = {
       date: date,
       breakfast: clean(breakfastRaw),
       lunch: clean(grouped[a.day].lunch.join(", ")),
@@ -329,37 +343,37 @@ function buildMenuFromColumns(rows, dayRows, headers, days) {
 
 function buildMenuFromSequentialLines(lines, days) {
   const menu = {};
-  for (let i=0;i<lines.length;i++){
-    const day=days.find(d=>lines[i].toUpperCase().includes(d));
-    if(!day) continue;
+  for (let i = 0; i < lines.length; i++) {
+    const day = days.find(d => lines[i].toUpperCase().includes(d));
+    if (!day) continue;
 
-    const breakfastRaw = lines[i+1]||"";
+    const breakfastRaw = lines[i + 1] || "";
     const dateMatch = breakfastRaw.match(/\b\d{2}-\d{2}\b/);
     const date = dateMatch ? dateMatch[0] : "";
 
-    menu[capitalize(day)]={
+    menu[capitalize(day)] = {
       date: date,
       breakfast: clean(breakfastRaw),
-      lunch: clean((lines[i+2]||"")+" "+(lines[i+3]||"")),
-      dinner: clean(lines[i+4]||"")
+      lunch: clean((lines[i + 2] || "") + " " + (lines[i + 3] || "")),
+      dinner: clean(lines[i + 4] || "")
     };
   }
   return menu;
 }
 
-function clean(text){
+function clean(text) {
   return text
     .replace(/\b\d{2}[-/]\d{2}([-/]\d{2,4})?\b/g, "") // remove dates
     .replace(/\b(BREAKFAST|LUNCH|DINNER|TIME|TO)\b/gi, "") // remove headers
-    .replace(/\s+/g," ")
-    .replace(/\s*,\s*/g,", ")
-    .replace(/OFF/i,"❌ OFF")
+    .replace(/\s+/g, " ")
+    .replace(/\s*,\s*/g, ", ")
+    .replace(/OFF/i, "❌ OFF")
     .trim()
     .replace(/^,|,$/g, "")
     .trim();
 }
 
-function capitalize(w){return w.charAt(0)+w.slice(1).toLowerCase();}
+function capitalize(w) { return w.charAt(0) + w.slice(1).toLowerCase(); }
 
 // ================= PDF UPLOAD =================
 bot.on("document", async (msg) => {
@@ -402,60 +416,78 @@ function formatFullMenu(menu) {
   Object.keys(menu).forEach(day => {
     const dateStr = menu[day].date ? ` (${menu[day].date})` : "";
     text += `\n*${day}${dateStr.toUpperCase()}*\n`;
-    text += `🍳 B: ${menu[day].breakfast || "—"}\n`;
-    text += `🍲 L: ${menu[day].lunch || "—"}\n`;
-    text += `🥗 D: ${menu[day].dinner || "—"}\n`;
+    text += `🍳 Breakfast: ${menu[day].breakfast || "—"}\n`;
+    text += `🍲 Lunch: ${menu[day].lunch || "—"}\n`;
+    text += `🥗 Dinner: ${menu[day].dinner || "—"}\n`;
   });
   return text;
 }
 
-bot.onText(/\/today/, async msg=>{
-  const menu=await getMenu();
-  bot.sendMessage(msg.chat.id, formatMenu(getDay(0),menu),{parse_mode:"Markdown"});
+bot.onText(/\/today/, async msg => {
+  const menu = await getMenu();
+  const keyboard = await sendMainMenu(msg.chat.id, true);
+  bot.sendMessage(msg.chat.id, formatMenu(getDay(0), menu), { 
+    parse_mode: "Markdown",
+    reply_markup: keyboard 
+  });
 });
 
-bot.onText(/\/tomorrow/, async msg=>{
-  const menu=await getMenu();
-  const day=getDay(1);
-  bot.sendMessage(msg.chat.id,`📅 Tomorrow\n\n${formatMenu(day,menu)}`,{parse_mode:"Markdown"});
+bot.onText(/\/tomorrow/, async msg => {
+  const menu = await getMenu();
+  const day = getDay(1);
+  const keyboard = await sendMainMenu(msg.chat.id, true);
+  bot.sendMessage(msg.chat.id, `📅 Tomorrow\n\n${formatMenu(day, menu)}`, { 
+    parse_mode: "Markdown",
+    reply_markup: keyboard 
+  });
 });
 
 bot.onText(/\/all/, async msg => {
   const menu = await getMenu();
-  bot.sendMessage(msg.chat.id, formatFullMenu(menu), { parse_mode: "Markdown" });
+  const keyboard = await sendMainMenu(msg.chat.id, true);
+  bot.sendMessage(msg.chat.id, formatFullMenu(menu), { 
+    parse_mode: "Markdown",
+    reply_markup: keyboard 
+  });
 });
 
 // ================= REMINDERS =================
-bot.onText(/\/on/, msg=>{
-  User.updateOne({chatId:msg.chat.id},{reminders:true},{upsert:true});
-  bot.sendMessage(msg.chat.id,"🔔 ON");
+bot.onText(/\/on/, async msg => {
+  await User.updateOne({ chatId: msg.chat.id }, { reminders: true }, { upsert: true });
+  const keyboard = await sendMainMenu(msg.chat.id, true);
+  bot.sendMessage(msg.chat.id, "🔔 Notifications turned ON!", {
+    reply_markup: keyboard
+  });
 });
 
-bot.onText(/\/off/, msg=>{
-  User.updateOne({chatId:msg.chat.id},{reminders:false},{upsert:true});
-  bot.sendMessage(msg.chat.id,"🔕 OFF");
+bot.onText(/\/off/, async msg => {
+  await User.updateOne({ chatId: msg.chat.id }, { reminders: false }, { upsert: true });
+  const keyboard = await sendMainMenu(msg.chat.id, true);
+  bot.sendMessage(msg.chat.id, "🔕 Notifications turned OFF", {
+    reply_markup: keyboard
+  });
 });
 
 // ================= CRON =================
-async function sendToUsers(builder){
-  const users=await User.find({reminders:true});
-  const menu=await getMenu();
-  if(!menu) return;
+async function sendToUsers(builder) {
+  const users = await User.find({ reminders: true });
+  const menu = await getMenu();
+  if (!menu) return;
 
-  users.forEach(u=>bot.sendMessage(u.chatId,builder(menu)));
+  users.forEach(u => bot.sendMessage(u.chatId, builder(menu)));
 }
 
-cron.schedule("0 7 * * *", async()=>{
-  const d=getDay(0);
-  sendToUsers(m=>`🌅 ${formatMenu(d,m)}`);
-},{timezone:"Asia/Kolkata"});
+cron.schedule("0 7 * * *", async () => {
+  const d = getDay(0);
+  sendToUsers(m => `🌅 ${formatMenu(d, m)}`);
+}, { timezone: "Asia/Kolkata" });
 
-cron.schedule("0 11 * * *", async()=>{
-  const d=getDay(0);
-  sendToUsers(m=>`🍛 ${m[d].lunch}`);
-},{timezone:"Asia/Kolkata"});
+cron.schedule("0 11 * * *", async () => {
+  const d = getDay(0);
+  sendToUsers(m => `🍛 ${m[d].lunch}`);
+}, { timezone: "Asia/Kolkata" });
 
-cron.schedule("0 20 * * *", async()=>{
-  const d=getDay(0);
-  sendToUsers(m=>`🍽️ ${m[d].dinner}`);
-},{timezone:"Asia/Kolkata"});
+cron.schedule("0 20 * * *", async () => {
+  const d = getDay(0);
+  sendToUsers(m => `🍽️ ${m[d].dinner}`);
+}, { timezone: "Asia/Kolkata" });
