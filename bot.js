@@ -102,7 +102,15 @@ bot.on("message", async (msg) => {
 });
 
 bot.onText(/\/start/, (msg) => {
-  sendMainMenu(msg.chat.id);
+  const name = msg.from.first_name || "there";
+  const welcomeText = `Hey ${name}! 👋 Welcome to your Canteen Bot. 👨‍🍳
+
+I can help you check what's cooking today and send you automated reminders so you never miss a meal! What would you like to see first?`;
+  
+  bot.sendMessage(msg.chat.id, welcomeText, {
+    parse_mode: "Markdown",
+    reply_markup: sendMainMenu(msg.chat.id, true) // Pass true to only get the keyboard
+  });
 });
 
 bot.on("callback_query", async (query) => {
@@ -125,16 +133,7 @@ bot.on("callback_query", async (query) => {
   }
 
   if (action === "all") {
-    let text = "📅 *Weekly Menu*\n\n";
-
-    Object.keys(menu).forEach(day => {
-      text += `━━━━━━━━━━━━━━━\n📍 *${day}*\n\n`;
-      text += `🥞 *Breakfast*\n${menu[day].breakfast}\n\n`;
-      text += `🍛 *Lunch*\n${menu[day].lunch}\n\n`;
-      text += `🍽️ *Dinner*\n${menu[day].dinner}\n\n`;
-    });
-
-    bot.sendMessage(chatId, text, { parse_mode: "Markdown" });
+    bot.sendMessage(chatId, formatFullMenu(menu), { parse_mode: "Markdown" });
   }
 
   if (action === "on") {
@@ -150,24 +149,28 @@ bot.on("callback_query", async (query) => {
   bot.answerCallbackQuery(query.id);
 });
 
-function sendMainMenu(chatId) {
-  bot.sendMessage(chatId, `🍽️ *Meal Menu*\n\nChoose an option 👇`, {
-    parse_mode: "Markdown",
-    reply_markup: {
-      inline_keyboard: [
-        [
-          { text: "🍽️ Today", callback_data: "today" },
-          { text: "📅 Tomorrow", callback_data: "tomorrow" }
-        ],
-        [
-          { text: "🗓️ Full Menu", callback_data: "all" }
-        ],
-        [
-          { text: "🔔 ON", callback_data: "on" },
-          { text: "🔕 OFF", callback_data: "off" }
-        ]
+function sendMainMenu(chatId, returnKeyboard = false) {
+  const keyboard = {
+    inline_keyboard: [
+      [
+        { text: "🍽️ Today", callback_data: "today" },
+        { text: "📅 Tomorrow", callback_data: "tomorrow" }
+      ],
+      [
+        { text: "📋 Full Weekly Plan", callback_data: "all" }
+      ],
+      [
+        { text: "🔔 Notifications: ON", callback_data: "on" },
+        { text: "🔕 OFF", callback_data: "off" }
       ]
-    }
+    ]
+  };
+
+  if (returnKeyboard) return keyboard;
+
+  bot.sendMessage(chatId, `🍽️ *Main Menu*\n\nChoose an option 👇`, {
+    parse_mode: "Markdown",
+    reply_markup: keyboard
   });
 }
 
