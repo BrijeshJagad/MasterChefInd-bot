@@ -12,16 +12,51 @@ const bot = new TelegramBot(process.env.BOT_TOKEN, {
   polling: false
 });
 
-// 🌐 Dummy server for Render
+// 🌐 Server Setup
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.get("/", (req, res) => {
-  res.send("🤖 Bot is running");
+// Enable static file serving (for the website)
+app.use(express.static("public"));
+app.use(express.json());
+
+// API: Health Check
+app.get("/health", (req, res) => res.send("OK"));
+
+// API: Get Today's Menu (JSON) - Perfect for Apple Shortcuts
+app.get("/api/today", async (req, res) => {
+  try {
+    const menu = await getMenu();
+    if (!menu) return res.status(404).json({ error: "Menu not uploaded yet" });
+    
+    const day = getDay(0);
+    const dayData = menu[day];
+    
+    if (!dayData) return res.status(404).json({ error: `Menu for ${day} not found` });
+    
+    res.json({
+      success: true,
+      day: day,
+      date: dayData.date || "",
+      breakfast: dayData.breakfast || "—",
+      lunch: dayData.lunch || "—",
+      dinner: dayData.dinner || "—",
+      formatted: `🍽️ ${day} Menu\n\n- Breakfast: ${dayData.breakfast}\n- Lunch: ${dayData.lunch}\n- Dinner: ${dayData.dinner}`
+    });
+  } catch (err) {
+    res.status(500).json({ error: "Server error" });
+  }
 });
 
-app.get("/health", (req, res) => {
-  res.send("OK");
+// API: Get Full Week Menu (JSON)
+app.get("/api/week", async (req, res) => {
+  try {
+    const menu = await getMenu();
+    if (!menu) return res.status(404).json({ error: "Menu not uploaded yet" });
+    res.json({ success: true, menu });
+  } catch (err) {
+    res.status(500).json({ error: "Server error" });
+  }
 });
 
 app.listen(PORT, () => {
