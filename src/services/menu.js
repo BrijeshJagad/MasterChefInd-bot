@@ -24,9 +24,14 @@ async function getMenu(weekKey = null) {
   return await Menu.findOne(query).sort({ weekKey: -1 });
 }
 
+async function deleteMenu(weekKey) {
+  if (!weekKey) throw new Error("weekKey is required for deletion");
+  return await Menu.findOneAndDelete({ weekKey });
+}
+
 async function getAvailableWeeks() {
   const weeks = await Menu.find({}, { weekKey: 1 }).sort({ weekKey: -1 });
   return weeks.map(w => w.weekKey);
 }
 
-module.exports = { saveMenu, getMenu, getAvailableWeeks };
+module.exports = { saveMenu, getMenu, deleteMenu, getAvailableWeeks };

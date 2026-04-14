@@ -131,6 +131,51 @@ function setupApiRoutes(app) {
     }
   });
 
+  // API: Update Menu Data (JSON)
+  app.put("/api/menu/:weekKey", async (req, res) => {
+    const password = req.headers["x-admin-password"];
+    if (password !== process.env.ADMIN_PASSWORD) {
+      return res.status(401).json({ error: "Unauthorized: Invalid Admin Password" });
+    }
+
+    try {
+      const { weekKey } = req.params;
+      const { menuData } = req.body;
+      
+      if (!menuData) {
+        return res.status(400).json({ error: "Missing menuData in request body." });
+      }
+
+      // saveMenu updates the entry. It handles replacing the data object.
+      // Passing null to pdfData ensures we don't erase the existing PDF buffer if one exists.
+      await saveMenu(menuData, null, weekKey);
+      
+      res.json({ success: true, message: `Menu for Week ${weekKey} updated successfully.` });
+    } catch (err) {
+      console.error("Update error:", err);
+      res.status(500).json({ error: "Failed to update menu." });
+    }
+  });
+
+  // API: Delete Menu
+  app.delete("/api/menu/:weekKey", async (req, res) => {
+    const password = req.headers["x-admin-password"];
+    if (password !== process.env.ADMIN_PASSWORD) {
+      return res.status(401).json({ error: "Unauthorized: Invalid Admin Password" });
+    }
+
+    try {
+      const { weekKey } = req.params;
+      const { deleteMenu } = require("../services/menu");
+      console.log(`Deleting week: ${weekKey}`);
+      await deleteMenu(weekKey);
+      res.json({ success: true, message: `Week ${weekKey} deleted successfully.` });
+    } catch (err) {
+      console.error("Delete error:", err);
+      res.status(500).json({ error: "Failed to delete menu." });
+    }
+  });
+
   console.log("🌐 API Routes initialized with History support");
 }
 
