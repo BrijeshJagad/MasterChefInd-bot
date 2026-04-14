@@ -131,6 +131,35 @@ function setupApiRoutes(app) {
     }
   });
 
+  // API: Create Menu Data (JSON)
+  app.post("/api/menu", async (req, res) => {
+    const password = req.headers["x-admin-password"];
+    if (password !== process.env.ADMIN_PASSWORD) {
+      return res.status(401).json({ error: "Unauthorized: Invalid Admin Password" });
+    }
+
+    try {
+      const { weekKey, menuData } = req.body;
+      if (!weekKey || !menuData) {
+        return res.status(400).json({ error: "Missing weekKey or menuData." });
+      }
+
+      const { generateMenuPDF } = require("../services/pdfGenerator");
+      const pdfBuffer = await generateMenuPDF(menuData, weekKey);
+
+      await saveMenu(menuData, {
+        buffer: pdfBuffer,
+        fileName: `MasterChef_Menu_W${weekKey}.pdf`,
+        contentType: 'application/pdf'
+      }, weekKey);
+      
+      res.json({ success: true, message: `Menu for Week ${weekKey} created and PDF synthesized successfully.` });
+    } catch (err) {
+      console.error("Create error:", err);
+      res.status(500).json({ error: "Failed to create menu." });
+    }
+  });
+
   // API: Update Menu Data (JSON)
   app.put("/api/menu/:weekKey", async (req, res) => {
     const password = req.headers["x-admin-password"];
@@ -146,11 +175,17 @@ function setupApiRoutes(app) {
         return res.status(400).json({ error: "Missing menuData in request body." });
       }
 
-      // saveMenu updates the entry. It handles replacing the data object.
-      // Passing null to pdfData ensures we don't erase the existing PDF buffer if one exists.
-      await saveMenu(menuData, null, weekKey);
+      // Generate a fresh PDF reflecting these edits
+      const { generateMenuPDF } = require("../services/pdfGenerator");
+      const pdfBuffer = await generateMenuPDF(menuData, weekKey);
+
+      await saveMenu(menuData, {
+        buffer: pdfBuffer,
+        fileName: `MasterChef_Menu_W${weekKey}_Edited.pdf`,
+        contentType: 'application/pdf'
+      }, weekKey);
       
-      res.json({ success: true, message: `Menu for Week ${weekKey} updated successfully.` });
+      res.json({ success: true, message: `Menu for Week ${weekKey} updated and PDF regenerated successfully.` });
     } catch (err) {
       console.error("Update error:", err);
       res.status(500).json({ error: "Failed to update menu." });

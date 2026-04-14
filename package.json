@@ -34,6 +34,7 @@
     "pdf-parse": "^1.1.1",
     "pdf-table-extractor": "^1.0.3",
     "pdf2json": "^4.0.2",
+    "pdfkit": "^0.18.0",
     "react": "^19.2.5",
     "react-dom": "^19.2.5"
   },

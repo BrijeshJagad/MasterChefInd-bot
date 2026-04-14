@@ -35,11 +35,14 @@ export default function AdminPortal() {
   const [weeks, setWeeks] = useState([]);
   const [loadingWeeks, setLoadingWeeks] = useState(false);
 
-  // Edit State
+  // Edit / Create State
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [activeWeekKey, setActiveWeekKey] = useState(null);
   const [editData, setEditData] = useState({});
   const [isSaving, setIsSaving] = useState(false);
+  
+  // For the Create flow specifically
+  const [newWeekKey, setNewWeekKey] = useState('');
 
   // Login handler
   const handleLogin = (e) => {
@@ -175,24 +178,52 @@ export default function AdminPortal() {
     }));
   };
 
+  const handleCreateNew = () => {
+    // Generate current week string as default YYYYWW
+    const d = new Date();
+    d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+    const weekNo = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+    const defaultWeek = `${d.getUTCFullYear()}${weekNo.toString().padStart(2, '0')}`;
+    
+    setNewWeekKey(defaultWeek);
+    const initializedData = {};
+    DAYS.forEach(day => {
+      initializedData[day.toUpperCase()] = { date: '', breakfast: '', lunch: '', dinner: '' };
+    });
+    setEditData(initializedData);
+    setActiveWeekKey(null); // Indicates 'CreateMode'
+    setEditModalOpen(true);
+  };
+
   const handleSaveEdit = async () => {
     setIsSaving(true);
     try {
-      const res = await fetch(`/api/menu/${activeWeekKey}`, {
-        method: 'PUT',
+      const isCreateMode = !activeWeekKey;
+      const targetWeek = isCreateMode ? newWeekKey : activeWeekKey;
+      const endpoint = isCreateMode ? '/api/menu' : `/api/menu/${targetWeek}`;
+      const method = isCreateMode ? 'POST' : 'PUT';
+      
+      const payload = { menuData: editData };
+      if (isCreateMode) payload.weekKey = targetWeek;
+
+      const res = await fetch(endpoint, {
+        method,
         headers: {
           'Content-Type': 'application/json',
           'x-admin-password': password
         },
-        body: JSON.stringify({ menuData: editData })
+        body: JSON.stringify(payload)
       });
       
       if (res.ok) {
         setEditModalOpen(false);
+        fetchWeeks(); // Refresh list to show new/edited data
+        if (isCreateMode) setTabValue(0); // Switch to list view
       } else if (res.status === 401) {
         logout();
       } else {
-        alert("Failed to update.");
+        alert("Operation failed. Try again.");
       }
     } catch (err) {
       alert("Network error.");
@@ -252,6 +283,9 @@ export default function AdminPortal() {
 
         {tabValue === 0 && (
           <Box p={3}>
+            <Box mb={2} display="flex" justifyContent="flex-end">
+              <Button variant="contained" onClick={handleCreateNew}>+ Create Manual Week</Button>
+            </Box>
             {loadingWeeks ? (
               <Box textAlign="center" py={5}><CircularProgress /></Box>
             ) : weeks.length === 0 ? (
@@ -338,10 +372,25 @@ export default function AdminPortal() {
         <Button component={Link} href="/" startIcon={<BackIcon />} sx={{ fontWeight: 'bold' }}>Back to Live Menu</Button>
       </Box>
 
-      {/* Editor Modal */}
+      {/* Editor Modal (Used for both Create and Edit) */}
       <Dialog open={editModalOpen} onClose={() => setEditModalOpen(false)} maxWidth="md" fullWidth>
-        <DialogTitle sx={{ fontWeight: 800 }}>Edit Week: {activeWeekKey}</DialogTitle>
+        <DialogTitle sx={{ fontWeight: 800 }}>
+          {activeWeekKey ? `Edit Week: ${activeWeekKey}` : 'Create Interactive Weekly Menu'}
+        </DialogTitle>
         <DialogContent dividers>
+          {!activeWeekKey && (
+            <Paper variant="outlined" sx={{ mb: 3, p: 2, backgroundColor: 'rgba(59, 130, 246, 0.05)', borderColor: 'primary.main' }}>
+              <Typography variant="body2" color="primary" mb={1} fontWeight={600}>Target Week Key (YYYYWW format)</Typography>
+              <TextField 
+                fullWidth size="small" 
+                value={newWeekKey} 
+                onChange={e => setNewWeekKey(e.target.value)} 
+                placeholder="202615"
+                helperText="This ensures the system knows exactly when to schedule this menu."
+              />
+            </Paper>
+          )}
+
           {DAYS.map(day => {
             const dayKey = day.toUpperCase();
             const data = editData[dayKey] || {};
