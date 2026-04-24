@@ -29,7 +29,7 @@ function getWeekRange(weekKey) {
     ISOweekStart.setUTCDate(simple.getUTCDate() - simple.getUTCDay() + 1);
   else
     ISOweekStart.setUTCDate(simple.getUTCDate() + 8 - simple.getUTCDay());
-  
+
   const days = [];
   for (let i = 0; i < 7; i++) {
     const d = new Date(ISOweekStart);
@@ -41,18 +41,18 @@ function getWeekRange(weekKey) {
 
 function formatMenu(day, data) {
   if (!data) return "⚠️ No menu data available.";
-  
+
   // Find key case-insensitively
   const dayKey = Object.keys(data).find(k => k.toUpperCase() === day.toUpperCase());
   if (!dayKey || !data[dayKey]) return `⚠️ Menu not uploaded for ${day.toUpperCase()} yet.`;
-  
+
   const record = data[dayKey];
   const dateStr = record.date ? ` — ${record.date}` : "";
   return `📅 *${day.toUpperCase()}${dateStr}*\n` +
-         `━━━━━━━━━━━━━━━━━━\n` +
-         `🍳 *Breakfast*\n└─ ${record.breakfast || "—"}\n\n` +
-         `🍛 *Lunch*\n└─ ${record.lunch || "—"}\n\n` +
-         `🍽️ *Dinner*\n└─ ${record.dinner || "—"}`;
+    `━━━━━━━━━━━━━━━━━━\n` +
+    `🍳 *Breakfast*\n└─ ${record.breakfast || "—"}\n\n` +
+    `🍛 *Lunch*\n└─ ${record.lunch || "—"}\n\n` +
+    `🍽️ *Dinner*\n└─ ${record.dinner || "—"}`;
 }
 
 function formatFullMenu(menu) {

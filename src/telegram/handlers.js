@@ -97,7 +97,7 @@ function initHandlers() {
     if (pendingTimeUpdates.has(chatId)) {
       const pending = pendingTimeUpdates.get(chatId);
       const input = (msg.text || "").trim();
-      
+
       // Validate HH:MM
       if (/^([01]\d|2[0-3]):([0-5]\d)$/.test(input)) {
         await User.updateOne({ chatId }, { [`timing.${pending.mealType}`]: input }, { upsert: true });
@@ -152,7 +152,9 @@ function initHandlers() {
 
     if (action.startsWith("view_week_")) {
       const weekKey = action.replace("view_week_", "");
-      const menuDoc = await getMenu(weekKey);
+      const menuDoc = await getMenu(weekKey).catch(() => null);
+
+      if (!menuDoc) return bot.sendMessage(chatId, "⚠️ Menu data not found.");
 
       const keyboard = {
         inline_keyboard: [
@@ -209,27 +211,20 @@ function initHandlers() {
       await User.updateOne({ chatId }, { reminders: false }, { upsert: true });
       return bot.sendMessage(chatId, "🔕 Notifications turned OFF", { reply_markup: await sendMainMenu(chatId, true) });
     }
-    
+
     if (action === "settings") {
       const user = await User.findOne({ chatId }) || {};
-      const breakfastTime = user.timing?.breakfast || "07:30";
-      const lunchTime = user.timing?.lunch || "11:00";
-      const dinnerTime = user.timing?.dinner || "20:00";
+      const timing = user.timing || {};
+      const breakfastTime = timing.breakfast || "07:30";
+      const lunchTime = timing.lunch || "11:00";
+      const dinnerTime = timing.dinner || "20:00";
 
       const keyboard = {
         inline_keyboard: [
-          [
-            { text: `🌅 Breakfast (${breakfastTime})`, callback_data: `set_breakfast` }
-          ],
-          [
-            { text: `🍛 Lunch (${lunchTime})`, callback_data: `set_lunch` }
-          ],
-          [
-            { text: `🍽️ Dinner (${dinnerTime})`, callback_data: `set_dinner` }
-          ],
-          [
-            { text: "🏠 Home", callback_data: "home" }
-          ]
+          [{ text: `🌅 Breakfast (${breakfastTime})`, callback_data: `set_breakfast` }],
+          [{ text: `🍛 Lunch (${lunchTime})`, callback_data: `set_lunch` }],
+          [{ text: `🍽️ Dinner (${dinnerTime})`, callback_data: `set_dinner` }],
+          [{ text: "🏠 Home", callback_data: "home" }]
         ]
       };
       return bot.sendMessage(chatId, `⚙️ *Notification Settings*\n\nYour current notification timings are:\n- Breakfast: ${breakfastTime}\n- Lunch: ${lunchTime}\n- Dinner: ${dinnerTime}\n\nClick a button below to change the time.`, { parse_mode: "Markdown", reply_markup: keyboard });
@@ -319,16 +314,17 @@ function initHandlers() {
   bot.onText(/\/settings/, async msg => {
     const chatId = msg.chat.id;
     const user = await User.findOne({ chatId }) || {};
-    const breakfastTime = user.timing?.breakfast || "07:30";
-    const lunchTime = user.timing?.lunch || "11:00";
-    const dinnerTime = user.timing?.dinner || "20:00";
+    const timing = user.timing || {};
+    const breakfastTime = timing.breakfast || "07:30";
+    const lunchTime = timing.lunch || "11:00";
+    const dinnerTime = timing.dinner || "20:00";
 
     const keyboard = {
       inline_keyboard: [
-        [ { text: `🌅 Breakfast (${breakfastTime})`, callback_data: `set_breakfast` } ],
-        [ { text: `🍛 Lunch (${lunchTime})`, callback_data: `set_lunch` } ],
-        [ { text: `🍽️ Dinner (${dinnerTime})`, callback_data: `set_dinner` } ],
-        [ { text: "🏠 Home", callback_data: "home" } ]
+        [{ text: `🌅 Breakfast (${breakfastTime})`, callback_data: `set_breakfast` }],
+        [{ text: `🍛 Lunch (${lunchTime})`, callback_data: `set_lunch` }],
+        [{ text: `🍽️ Dinner (${dinnerTime})`, callback_data: `set_dinner` }],
+        [{ text: "🏠 Home", callback_data: "home" }]
       ]
     };
     bot.sendMessage(chatId, `⚙️ *Notification Settings*\n\nYour current notification timings are:\n- Breakfast: ${breakfastTime}\n- Lunch: ${lunchTime}\n- Dinner: ${dinnerTime}\n\nClick a button below to change the time.`, { parse_mode: "Markdown", reply_markup: keyboard });
