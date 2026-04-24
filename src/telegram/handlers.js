@@ -7,8 +7,9 @@ const { getMenu, saveMenu, getAvailableWeeks } = require("../services/menu");
 const { getDay, formatMenu, formatFullMenu, getWeekKey } = require("../services/utils");
 const { parseMenuFromPDF } = require("../services/parser");
 
-// Simple in-memory state for password challenge
+// Simple in-memory state for password challenge and time settings
 const pendingUploads = new Map();
+const pendingTimeUpdates = new Map();
 
 function initHandlers() {
   const bot = getBot();
@@ -39,7 +40,8 @@ function initHandlers() {
           { text: "⬆️ Admin/Upload", url: "https://masterchefind-bot.onrender.com/admin" }
         ],
         [
-          { text: toggleLabel, callback_data: toggleAction }
+          { text: toggleLabel, callback_data: toggleAction },
+          { text: "⚙️ Notification Settings", callback_data: "settings" }
         ]
       ]
     };
@@ -86,6 +88,22 @@ function initHandlers() {
         bot.sendMessage(chatId, "❌ *Invalid Admin Password.* Upload cancelled.", { parse_mode: "Markdown" });
         pendingUploads.delete(chatId);
       }
+      return;
+    }
+
+    // Check if user is in "Waiting for Time Update" state
+    if (pendingTimeUpdates.has(chatId)) {
+      const pending = pendingTimeUpdates.get(chatId);
+      const input = (msg.text || "").trim();
+      
+      // Validate HH:MM
+      if (/^([01]\d|2[0-3]):([0-5]\d)$/.test(input)) {
+        await User.updateOne({ chatId }, { [`timing.${pending.mealType}`]: input }, { upsert: true });
+        bot.sendMessage(chatId, `✅ *${pending.mealType.charAt(0).toUpperCase() + pending.mealType.slice(1)}* notification time set to *${input}*!`, { parse_mode: "Markdown", reply_markup: await sendMainMenu(chatId, true) });
+      } else {
+        bot.sendMessage(chatId, `❌ *Invalid format.* Please use HH:MM (e.g. 07:30, 20:00). Cancelling update.`, { parse_mode: "Markdown", reply_markup: await sendMainMenu(chatId, true) });
+      }
+      pendingTimeUpdates.delete(chatId);
       return;
     }
 
@@ -189,6 +207,37 @@ function initHandlers() {
       await User.updateOne({ chatId }, { reminders: false }, { upsert: true });
       return bot.sendMessage(chatId, "🔕 Notifications turned OFF", { reply_markup: await sendMainMenu(chatId, true) });
     }
+    
+    if (action === "settings") {
+      const user = await User.findOne({ chatId }) || {};
+      const breakfastTime = user.timing?.breakfast || "07:30";
+      const lunchTime = user.timing?.lunch || "11:00";
+      const dinnerTime = user.timing?.dinner || "20:00";
+
+      const keyboard = {
+        inline_keyboard: [
+          [
+            { text: `🌅 Breakfast (${breakfastTime})`, callback_data: `set_breakfast` }
+          ],
+          [
+            { text: `🍛 Lunch (${lunchTime})`, callback_data: `set_lunch` }
+          ],
+          [
+            { text: `🍽️ Dinner (${dinnerTime})`, callback_data: `set_dinner` }
+          ],
+          [
+            { text: "🏠 Home", callback_data: "home" }
+          ]
+        ]
+      };
+      return bot.sendMessage(chatId, `⚙️ *Notification Settings*\n\nYour current notification timings are:\n- Breakfast: ${breakfastTime}\n- Lunch: ${lunchTime}\n- Dinner: ${dinnerTime}\n\nClick a button below to change the time.`, { parse_mode: "Markdown", reply_markup: keyboard });
+    }
+
+    if (action.startsWith("set_")) {
+      const mealType = action.replace("set_", ""); 
+      pendingTimeUpdates.set(chatId, { mealType, timestamp: Date.now() });
+      return bot.sendMessage(chatId, `⏳ Please send the new time for *${mealType.charAt(0).toUpperCase() + mealType.slice(1)}* in \`HH:MM\` format (24-hour clock, e.g., \`07:30\` or \`19:00\`).`, { parse_mode: "Markdown" });
+    }
   });
 
   bot.on("document", async (msg) => {
@@ -248,6 +297,24 @@ function initHandlers() {
   bot.onText(/\/off/, async msg => {
     await User.updateOne({ chatId: msg.chat.id }, { reminders: false }, { upsert: true });
     bot.sendMessage(msg.chat.id, "🔕 Notifications turned OFF", { reply_markup: await sendMainMenu(msg.chat.id, true) });
+  });
+
+  bot.onText(/\/settings/, async msg => {
+    const chatId = msg.chat.id;
+    const user = await User.findOne({ chatId }) || {};
+    const breakfastTime = user.timing?.breakfast || "07:30";
+    const lunchTime = user.timing?.lunch || "11:00";
+    const dinnerTime = user.timing?.dinner || "20:00";
+
+    const keyboard = {
+      inline_keyboard: [
+        [ { text: `🌅 Breakfast (${breakfastTime})`, callback_data: `set_breakfast` } ],
+        [ { text: `🍛 Lunch (${lunchTime})`, callback_data: `set_lunch` } ],
+        [ { text: `🍽️ Dinner (${dinnerTime})`, callback_data: `set_dinner` } ],
+        [ { text: "🏠 Home", callback_data: "home" } ]
+      ]
+    };
+    bot.sendMessage(chatId, `⚙️ *Notification Settings*\n\nYour current notification timings are:\n- Breakfast: ${breakfastTime}\n- Lunch: ${lunchTime}\n- Dinner: ${dinnerTime}\n\nClick a button below to change the time.`, { parse_mode: "Markdown", reply_markup: keyboard });
   });
 
   console.log("🤖 Telegram Handlers initialized");

@@ -3,7 +3,12 @@ const mongoose = require("mongoose");
 // ===== User Schema =====
 const userSchema = new mongoose.Schema({
   chatId: String,
-  reminders: { type: Boolean, default: true }
+  reminders: { type: Boolean, default: true },
+  timing: {
+    breakfast: { type: String, default: "07:30" },
+    lunch: { type: String, default: "11:00" },
+    dinner: { type: String, default: "20:00" }
+  }
 });
 const User = mongoose.model("User", userSchema);
 
