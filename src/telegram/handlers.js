@@ -14,6 +14,17 @@ const pendingTimeUpdates = new Map();
 function initHandlers() {
   const bot = getBot();
 
+  // Set Bot Commands for the blue 'Menu' button
+  bot.setMyCommands([
+    { command: 'today', description: "Today's delicious menu" },
+    { command: 'tomorrow', description: "Check what's cooking tomorrow" },
+    { command: 'all', description: 'View full weekly plan' },
+    { command: 'announcements', description: 'Latest platform updates' },
+    { command: 'settings', description: 'Configure notification times' },
+    { command: 'on', description: 'Enable daily reminders' },
+    { command: 'off', description: 'Privacy mode: Disable reminders' }
+  ]).catch(err => console.error("Could not set bot commands:", err.message));
+
   async function ensureUser(chatId) {
     let user = await User.findOne({ chatId });
     if (!user) user = await User.create({ chatId, reminders: true });
@@ -32,7 +43,8 @@ function initHandlers() {
           { text: "📅 Tomorrow", callback_data: "tomorrow" }
         ],
         [
-          { text: "📊 Stats & History", callback_data: "history" }
+          { text: "📋 Full Weekly Plan", callback_data: "all" },
+          { text: "📊 History & Stats", callback_data: "history" }
         ],
         [
           { text: "📑 Download PDF", callback_data: "download_pdf" },
