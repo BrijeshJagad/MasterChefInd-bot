@@ -4,7 +4,7 @@ import React from 'react';
 import {
   Box, Typography, List, ListItem, ListItemButton, ListItemIcon,
   ListItemText, Divider, Button, Stack, Tooltip, IconButton,
-  Drawer, useTheme, Link, useMediaQuery
+  Drawer, useTheme, Link as MuiLink, useMediaQuery
 } from '@mui/material';
 import HistoryIcon from '@mui/icons-material/History';
 import CloudUploadIcon from '@mui/icons-material/FileUploadOutlined';
@@ -16,12 +16,15 @@ import GitHubIcon from '@mui/icons-material/GitHub';
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import LockOpenOutlinedIcon from '@mui/icons-material/LockOpenOutlined';
 import { useColorMode } from '../ThemeRegistry';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 
 const DRAWER_WIDTH = 260;
 
 export default function Sidebar({ weeks, selectedWeek, onSelectWeek, mobileOpen, onMobileToggle, isAdmin, onAdminToggle, onAdminLogout }) {
   const theme = useTheme();
   const colorMode = useColorMode();
+  const pathname = usePathname();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
   const drawerContent = (
@@ -34,14 +37,52 @@ export default function Sidebar({ weeks, selectedWeek, onSelectWeek, mobileOpen,
 
       <Box sx={{ flex: 1, overflow: 'auto', mx: -1, px: 1 }}>
         <List disablePadding>
+          <ListItem disablePadding sx={{ mb: 1 }}>
+            <ListItemButton
+              component={Link}
+              href="/announcements"
+              selected={pathname === '/announcements'}
+              onClick={() => onMobileToggle && onMobileToggle()}
+              sx={{
+                borderRadius: '10px',
+                py: 1,
+                bgcolor: pathname === '/announcements' ? 'rgba(67, 24, 255, 0.1)' : 'transparent',
+                '&.Mui-selected': {
+                  bgcolor: 'primary.main',
+                  color: 'white',
+                  '&:hover': { bgcolor: 'primary.dark' }
+                }
+              }}
+            >
+              <ListItemIcon sx={{ minWidth: 32, color: pathname === '/announcements' ? 'primary.main' : 'inherit' }}>
+                <CloudUploadIcon sx={{ fontSize: '1rem' }} />
+              </ListItemIcon>
+              <ListItemText
+                primary="Announcements"
+                sx={{
+                  '& .MuiListItemText-primary': {
+                    fontWeight: pathname === '/announcements' ? 900 : 500,
+                    fontSize: '0.85rem'
+                  }
+                }}
+              />
+            </ListItemButton>
+          </ListItem>
+
+          <Divider sx={{ my: 2, opacity: 0.1 }} />
+          <Typography variant="caption" sx={{ px: 2, mb: 1, display: 'block', opacity: 0.5, fontWeight: 700, letterSpacing: '0.05em' }}>
+            WEEKLY ARCHIVE
+          </Typography>
+
           {weeks.map((w) => (
             <ListItem key={w} disablePadding sx={{ mb: 0.5 }}>
               <ListItemButton
-                selected={selectedWeek === w}
-                onClick={() => {
-                  onSelectWeek(w);
-                  if (onMobileToggle) onMobileToggle();
-                }}
+              component={Link}
+              href={`/?week=${w}`}
+              selected={selectedWeek === w && pathname === '/'}
+              onClick={() => {
+                if (onMobileToggle) onMobileToggle();
+              }}
                 sx={{
                   borderRadius: '10px',
                   py: 1,

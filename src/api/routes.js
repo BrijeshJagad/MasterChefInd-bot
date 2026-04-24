@@ -2,9 +2,11 @@ const multer = require("multer");
 const { getMenu, saveMenu, getAvailableWeeks } = require("../services/menu");
 const { getDay } = require("../services/utils");
 const { parseMenuFromPDF } = require("../services/parser");
+const { User, Announcement } = require("../services/models");
 const fs = require("fs");
 const path = require("path");
 const jwt = require("jsonwebtoken");
+const { getBot } = require("../telegram/bot");
 
 const JWT_SECRET = process.env.JWT_SECRET || 'masterchef-canteen-super-secret';
 const upload = multer({ storage: multer.memoryStorage() });
@@ -219,6 +221,55 @@ function setupApiRoutes(app) {
     } catch (err) {
       console.error("Delete error:", err);
       res.status(500).json({ error: "Failed to delete menu." });
+    }
+  });
+
+  // API: Get Announcements
+  app.get("/api/announcements", async (req, res) => {
+    try {
+      const announcements = await Announcement.find({}).sort({ createdAt: -1 }).limit(50);
+      res.json({ success: true, announcements });
+    } catch (err) {
+      console.error("Get announcements error:", err);
+      res.status(500).json({ error: "Failed to fetch announcements." });
+    }
+  });
+
+  // API: Create Announcement & Broadcast (Admin)
+  app.post("/api/announcements", verifyJWT, async (req, res) => {
+    try {
+      const { message } = req.body;
+      if (!message || message.trim() === "") {
+        return res.status(400).json({ error: "Announcement message cannot be empty." });
+      }
+
+      // 1. Save to DB
+      const announcement = await Announcement.create({ message: message.trim() });
+
+      // 2. Broadcast to Telegram Users
+      const users = await User.find({ reminders: true }); // Broadcasting to those with reminders on.
+      const bot = getBot();
+      let broadcastCount = 0;
+      
+      const broadcastMsg = `📢 *Announcement:*\n\n${announcement.message}`;
+      
+      for (const user of users) {
+        try {
+          await bot.sendMessage(user.chatId, broadcastMsg, { parse_mode: "Markdown" });
+          broadcastCount++;
+        } catch (err) {
+          console.error(`Failed to broadcast to user ${user.chatId}:`, err.message);
+        }
+      }
+
+      res.json({ 
+        success: true, 
+        message: `Announcement created and mapped to ${broadcastCount} users successfully!`,
+        announcement 
+      });
+    } catch (err) {
+      console.error("Create announcement error:", err);
+      res.status(500).json({ error: "Failed to create announcement." });
     }
   });
 

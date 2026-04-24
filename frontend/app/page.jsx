@@ -8,6 +8,8 @@ import {
   Paper
 } from '@mui/material';
 import Sidebar from './components/Sidebar';
+import { useSearchParams, useRouter } from 'next/navigation';
+import SuspenseBoundary from './components/SuspenseBoundary'; // I'll create this to wrap useSearchParams
 import DownloadIcon from '@mui/icons-material/DescriptionOutlined';
 import JsonIcon from '@mui/icons-material/DataObjectOutlined';
 import MenuIcon from '@mui/icons-material/Menu';
@@ -20,7 +22,11 @@ import LockIcon from '@mui/icons-material/Lock';
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
-export default function Home() {
+function HomeContent() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const urlWeek = searchParams.get('week');
+
   const [weeks, setWeeks] = useState([]);
   const [selectedWeek, setSelectedWeek] = useState('');
   const [menuData, setMenuData] = useState(null);
@@ -100,13 +106,22 @@ export default function Home() {
       .then(data => {
         if (data.success && data.weeks.length > 0) {
           setWeeks(data.weeks);
-          setSelectedWeek(data.weeks[0]);
+          // Sync with URL parameter if present, otherwise default to latest
+          const target = urlWeek || data.weeks[0];
+          setSelectedWeek(target);
         } else {
           setLoading(false);
         }
       })
       .catch(() => setLoading(false));
-  }, []);
+  }, [urlWeek]);
+
+  // Sync selectedWeek if URL parameter changes
+  useEffect(() => {
+    if (urlWeek && urlWeek !== selectedWeek) {
+      setSelectedWeek(urlWeek);
+    }
+  }, [urlWeek]);
 
   useEffect(() => {
     if (!selectedWeek) return;
@@ -722,6 +737,14 @@ export default function Home() {
       </Button>
     </DialogActions>
   </Dialog>
-    </Box >
+    </Box>
+  );
+}
+
+export default function Home() {
+  return (
+    <SuspenseBoundary>
+      <HomeContent />
+    </SuspenseBoundary>
   );
 }

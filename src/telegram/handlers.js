@@ -2,7 +2,7 @@ const axios = require("axios");
 const fs = require("fs");
 const path = require("path");
 const { getBot } = require("./bot");
-const { User, Menu } = require("../services/models");
+const { User, Menu, Announcement } = require("../services/models");
 const { getMenu, saveMenu, getAvailableWeeks } = require("../services/menu");
 const { getDay, formatMenu, formatFullMenu, getWeekKey } = require("../services/utils");
 const { parseMenuFromPDF } = require("../services/parser");
@@ -32,15 +32,17 @@ function initHandlers() {
           { text: "📅 Tomorrow", callback_data: "tomorrow" }
         ],
         [
-          { text: "📋 Full Weekly Plan", callback_data: "all" },
-          { text: "📅 History", callback_data: "history" }
+          { text: "📊 Stats & History", callback_data: "history" }
         ],
         [
-          { text: "📥 Download PDF", callback_data: "download_pdf" },
-          { text: "⬆️ Admin/Upload", url: "https://masterchefind-bot.onrender.com/admin" }
+          { text: "📑 Download PDF", callback_data: "download_pdf" },
+          { text: "⚡ Web Dashboard", url: "https://masterchefind-bot.onrender.com" }
         ],
         [
           { text: toggleLabel, callback_data: toggleAction },
+          { text: "📢 Announcements", callback_data: "announcements" }
+        ],
+        [
           { text: "⚙️ Notification Settings", callback_data: "settings" }
         ]
       ]
@@ -114,7 +116,7 @@ function initHandlers() {
 
   bot.onText(/\/start/, async (msg) => {
     const name = msg.from.first_name || "there";
-    const welcomeText = `Hey ${name}! 👋 Welcome to your Canteen Bot. 👨‍🍳\n\nI can help you check what's cooking today and send you automated reminders so you never miss a meal!\n\n🌐 *Web Dashboard*: https://masterchefind-bot.onrender.com\n\nWhat would you like to see first?`;
+    const welcomeText = `🚀 *Welcome to MasterChef Canteen, ${name}!* 👨‍🍳\n\nI'm your intelligent personal assistant for meal planning and canteen updates. My goal is to make sure you never miss a great meal!\n\n✨ *Key Features:*\n🔹 Interactive Menus\n🔹 Personalized Reminders\n🔹 Broadcast Updates\n\nReady to see what's cooking?`;
     const keyboard = await sendMainMenu(msg.chat.id, true);
     bot.sendMessage(msg.chat.id, welcomeText, { parse_mode: "Markdown", reply_markup: keyboard });
   });
@@ -238,6 +240,21 @@ function initHandlers() {
       pendingTimeUpdates.set(chatId, { mealType, timestamp: Date.now() });
       return bot.sendMessage(chatId, `⏳ Please send the new time for *${mealType.charAt(0).toUpperCase() + mealType.slice(1)}* in \`HH:MM\` format (24-hour clock, e.g., \`07:30\` or \`19:00\`).`, { parse_mode: "Markdown" });
     }
+
+    if (action === "announcements") {
+      const announcements = await Announcement.find({}).sort({ createdAt: -1 }).limit(10);
+      if (announcements.length === 0) {
+        return bot.sendMessage(chatId, "📭 *No announcements yet.* Check back later!", { parse_mode: "Markdown" });
+      }
+
+      let text = "📢 *Recent Announcements*\n\n";
+      announcements.forEach((ann, idx) => {
+        const date = new Date(ann.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+        text += `${idx + 1}. *[${date}]* ${ann.message}\n\n`;
+      });
+
+      return bot.sendMessage(chatId, text, { parse_mode: "Markdown", reply_markup: { inline_keyboard: [[{ text: "🏠 Home", callback_data: "home" }]] } });
+    }
   });
 
   bot.on("document", async (msg) => {
@@ -315,6 +332,21 @@ function initHandlers() {
       ]
     };
     bot.sendMessage(chatId, `⚙️ *Notification Settings*\n\nYour current notification timings are:\n- Breakfast: ${breakfastTime}\n- Lunch: ${lunchTime}\n- Dinner: ${dinnerTime}\n\nClick a button below to change the time.`, { parse_mode: "Markdown", reply_markup: keyboard });
+  });
+
+  bot.onText(/\/announcements/, async msg => {
+    const announcements = await Announcement.find({}).sort({ createdAt: -1 }).limit(10);
+    if (announcements.length === 0) {
+      return bot.sendMessage(msg.chat.id, "📭 *No announcements yet.*", { parse_mode: "Markdown" });
+    }
+
+    let text = "📢 *Recent Announcements*\n\n";
+    announcements.forEach((ann, idx) => {
+      const date = new Date(ann.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+      text += `${idx + 1}. *[${date}]* ${ann.message}\n\n`;
+    });
+
+    bot.sendMessage(msg.chat.id, text, { parse_mode: "Markdown" });
   });
 
   console.log("🤖 Telegram Handlers initialized");

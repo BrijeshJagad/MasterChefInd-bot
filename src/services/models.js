@@ -22,4 +22,11 @@ const menuSchema = new mongoose.Schema({
 });
 const Menu = mongoose.model("Menu", menuSchema);
 
-module.exports = { User, Menu };
+// ===== Announcement Schema =====
+const announcementSchema = new mongoose.Schema({
+  message: { type: String, required: true },
+  createdAt: { type: Date, default: Date.now }
+});
+const Announcement = mongoose.model("Announcement", announcementSchema);
+
+module.exports = { User, Menu, Announcement };

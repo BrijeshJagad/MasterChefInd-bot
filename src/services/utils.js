@@ -47,8 +47,12 @@ function formatMenu(day, data) {
   if (!dayKey || !data[dayKey]) return `⚠️ Menu not uploaded for ${day.toUpperCase()} yet.`;
   
   const record = data[dayKey];
-  const dateStr = record.date ? ` (${record.date})` : "";
-  return `*${day.toUpperCase()}${dateStr}*\n\n🥗 *Breakfast*: ${record.breakfast || "—"}\n🍛 *Lunch*: ${record.lunch || "—"}\n🥣 *Dinner*: ${record.dinner || "—"}`;
+  const dateStr = record.date ? ` — ${record.date}` : "";
+  return `📅 *${day.toUpperCase()}${dateStr}*\n` +
+         `━━━━━━━━━━━━━━━━━━\n` +
+         `🍳 *Breakfast*\n└─ ${record.breakfast || "—"}\n\n` +
+         `🍛 *Lunch*\n└─ ${record.lunch || "—"}\n\n` +
+         `🍽️ *Dinner*\n└─ ${record.dinner || "—"}`;
 }
 
 function formatFullMenu(menu) {
@@ -60,11 +64,12 @@ function formatFullMenu(menu) {
     const dayKey = Object.keys(menu).find(k => k.toUpperCase() === day.toUpperCase());
     if (dayKey && menu[dayKey]) {
       const record = menu[dayKey];
-      const dateStr = record.date ? ` (${record.date})` : "";
-      text += `\n*${day.toUpperCase()}${dateStr}*\n`;
-      text += `🥗 Breakfast: ${record.breakfast || "—"}\n`;
-      text += `🍛 Lunch: ${record.lunch || "—"}\n`;
-      text += `🥣 Dinner: ${record.dinner || "—"}\n`;
+      const dateStr = record.date ? ` — ${record.date}` : "";
+      text += `\n✨ *${day.toUpperCase()}${dateStr}*\n`;
+      text += `🍳 B: ${record.breakfast || "—"}\n`;
+      text += `🍛 L: ${record.lunch || "—"}\n`;
+      text += `🍽️ D: ${record.dinner || "—"}\n`;
+      text += `┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈\n`;
     }
   });
   return text;
