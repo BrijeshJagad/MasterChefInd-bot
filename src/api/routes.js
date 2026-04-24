@@ -4,11 +4,42 @@ const { getDay } = require("../services/utils");
 const { parseMenuFromPDF } = require("../services/parser");
 const fs = require("fs");
 const path = require("path");
+const jwt = require("jsonwebtoken");
 
+const JWT_SECRET = process.env.JWT_SECRET || 'masterchef-canteen-super-secret';
 const upload = multer({ storage: multer.memoryStorage() });
+
+// Middleware to verify JWT
+const verifyJWT = (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({ error: "Unauthorized: Missing authentication token" });
+  }
+
+  const token = authHeader.split(" ")[1];
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    req.admin = decoded;
+    next();
+  } catch (err) {
+    return res.status(401).json({ error: "Unauthorized: Invalid or expired token" });
+  }
+};
 
 function setupApiRoutes(app) {
   app.get("/api/health", (req, res) => res.send("OK"));
+
+  // API: Admin Authentication
+  app.post("/api/auth/login", (req, res) => {
+    const { password } = req.body;
+    if (password !== process.env.ADMIN_PASSWORD) {
+      return res.status(401).json({ error: "Unauthorized: Invalid Admin Password" });
+    }
+
+    // Sign JWT with 2 hour expiration
+    const token = jwt.sign({ role: "admin" }, JWT_SECRET, { expiresIn: "2h" });
+    res.json({ success: true, token });
+  });
 
   // API: Get List of Available Weeks
   app.get("/api/weeks", async (req, res) => {
@@ -97,12 +128,7 @@ function setupApiRoutes(app) {
   });
 
   // API: Upload Menu PDF
-  app.post("/api/upload", upload.single("pdf"), async (req, res) => {
-    const password = req.body.password;
-    if (password !== process.env.ADMIN_PASSWORD) {
-      return res.status(401).json({ error: "Unauthorized: Invalid Admin Password" });
-    }
-
+  app.post("/api/upload", verifyJWT, upload.single("pdf"), async (req, res) => {
     if (!req.file) {
       return res.status(400).json({ error: "No file uploaded" });
     }
@@ -132,12 +158,7 @@ function setupApiRoutes(app) {
   });
 
   // API: Create Menu Data (JSON)
-  app.post("/api/menu", async (req, res) => {
-    const password = req.headers["x-admin-password"];
-    if (password !== process.env.ADMIN_PASSWORD) {
-      return res.status(401).json({ error: "Unauthorized: Invalid Admin Password" });
-    }
-
+  app.post("/api/menu", verifyJWT, async (req, res) => {
     try {
       const { weekKey, menuData } = req.body;
       if (!weekKey || !menuData) {
@@ -161,12 +182,7 @@ function setupApiRoutes(app) {
   });
 
   // API: Update Menu Data (JSON)
-  app.put("/api/menu/:weekKey", async (req, res) => {
-    const password = req.headers["x-admin-password"];
-    if (password !== process.env.ADMIN_PASSWORD) {
-      return res.status(401).json({ error: "Unauthorized: Invalid Admin Password" });
-    }
-
+  app.put("/api/menu/:weekKey", verifyJWT, async (req, res) => {
     try {
       const { weekKey } = req.params;
       const { menuData } = req.body;
@@ -193,12 +209,7 @@ function setupApiRoutes(app) {
   });
 
   // API: Delete Menu
-  app.delete("/api/menu/:weekKey", async (req, res) => {
-    const password = req.headers["x-admin-password"];
-    if (password !== process.env.ADMIN_PASSWORD) {
-      return res.status(401).json({ error: "Unauthorized: Invalid Admin Password" });
-    }
-
+  app.delete("/api/menu/:weekKey", verifyJWT, async (req, res) => {
     try {
       const { weekKey } = req.params;
       const { deleteMenu } = require("../services/menu");

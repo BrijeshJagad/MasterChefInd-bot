@@ -1,5 +1,9 @@
 const request = require('supertest');
 const express = require('express');
+const jwt = require('jsonwebtoken');
+
+process.env.JWT_SECRET = 'test_secret';
+
 const { setupApiRoutes } = require('../src/api/routes');
 
 // Mock services
@@ -38,5 +42,46 @@ describe('API Routes', () => {
     getMenu.mockResolvedValue(null);
     const res = await request(app).get('/api/menu');
     expect(res.statusCode).toBe(404);
+  });
+
+  describe('JWT Authentication', () => {
+    beforeAll(() => {
+      // Must set before requiring routes if we didn't already, but since module is loaded,
+      // we must rely on what it parsed. We will spy on it or just set test_secret during setup if needed.
+      // Wait, let's just make sure both match.
+      process.env.ADMIN_PASSWORD = 'test_password';
+      process.env.JWT_SECRET = 'test_secret'; 
+    });
+
+    test('POST /api/auth/login should fail with wrong password', async () => {
+      const res = await request(app)
+        .post('/api/auth/login')
+        .send({ password: 'wrong_password' });
+      expect(res.statusCode).toBe(401);
+      expect(res.body.error).toMatch(/Invalid Admin Password/);
+    });
+
+    test('POST /api/auth/login should issue JWT with correct password', async () => {
+      const res = await request(app)
+        .post('/api/auth/login')
+        .send({ password: 'test_password' });
+      expect(res.statusCode).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.token).toBeDefined();
+
+      const decoded = jwt.verify(res.body.token, 'test_secret');
+      expect(decoded.role).toBe('admin');
+    });
+
+    test('Protected routes should reject requests without token', async () => {
+      const res1 = await request(app).post('/api/menu').send({ weekKey: '123', menuData: {} });
+      expect(res1.statusCode).toBe(401);
+
+      const res2 = await request(app).put('/api/menu/202616').send({ menuData: {} });
+      expect(res2.statusCode).toBe(401);
+
+      const res3 = await request(app).delete('/api/menu/202616');
+      expect(res3.statusCode).toBe(401);
+    });
   });
 });

@@ -33,11 +33,9 @@ async function startBotPolling() {
       console.log("ℹ️ Webhook/Updates cleanup (normal if already clean):", apiErr.message);
     }
     
-    console.log("⏳ Waiting 8s for Telegram cooldown...");
-    await new Promise(res => setTimeout(res, 8000));
-    
+    // Try to start polling immediately. It will auto-reconnect if it hits mild 409 conflicts.
     await bot.startPolling({ interval: 300, params: { timeout: 10 } });
-    console.log("✅ Polling started safely");
+    console.log("✅ Polling started safely (with auto-reconnect handling)");
   } catch (err) {
     const detail = err.response?.data?.description || err.message;
     console.error("❌ Telegram Startup error:", detail);

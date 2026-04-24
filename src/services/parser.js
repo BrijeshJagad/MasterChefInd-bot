@@ -22,7 +22,7 @@ function parseMenuFromPDF(filePath) {
       const fullText = items.map(i => i.text).join(" ");
       // Handle 13/04/26 to 19/04/2026 or 13/04/2026 to 19/04/2026
       const weekRangeMatch = fullText.match(/(\d{2}\/\d{2}\/\d{2,4})\s+to\s+(\d{2}\/\d{2}\/\d{2,4})/i);
-      
+
       let weekKey = null;
       if (weekRangeMatch) {
         const startDateStr = weekRangeMatch[1];
@@ -45,7 +45,7 @@ function parseMenuFromPDF(filePath) {
 
 function buildMenu(items) {
   const days = ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY"];
-  
+
   // 1. Detect Headers
   const headers = {};
   items.forEach(item => {
@@ -78,23 +78,31 @@ function buildMenu(items) {
 
   const menu = {};
   anchors.forEach((anchor, index) => {
-    const nextY = anchors[index + 1] ? anchors[index + 1].y : 999;
-    
-    // Day search range: from anchor.y - 1 (for items slightly above) to nextAnchor.y
-    const dayItems = items.filter(item => item.y >= anchor.y - 1.5 && item.y < nextY - 0.5);
-    
+    // Calculate true cell boundaries using geometric midpoints!
+    // Since day labels (e.g. "MONDAY") are vertically centered, the actual cell divider
+    // is exactly directly halfway between two adjacent day labels.
+    const startY = index === 0
+      ? anchor.y - ((anchors[1]?.y - anchor.y) / 2)
+      : (anchors[index - 1].y + anchor.y) / 2;
+
+    const nextY = index === anchors.length - 1
+      ? anchor.y + ((anchor.y - anchors[index - 1].y) / 2)
+      : (anchor.y + anchors[index + 1].y) / 2;
+
+    const dayItems = items.filter(item => item.y >= startY && item.y < nextY);
+
     const dayData = { date: "", breakfast: [], lunch: [], dinner: [] };
-    
+
     dayItems.forEach(item => {
       const t = item.text;
       const tUpper = t.toUpperCase();
-      
+
       // Is this the date? (e.g. 13-04)
       if (/\b\d{2}-\d{2}\b/.test(t) && !dayData.date) {
         dayData.date = t;
         return;
       }
-      
+
       // Ignore labels
       if (days.includes(tUpper) || ["BREAKFAST", "LUNCH", "DINNER", "TIME", "7:30AM", "11:00AM", "08:00PM"].some(lbl => tUpper.includes(lbl))) {
         return;
@@ -112,22 +120,26 @@ function buildMenu(items) {
 
     menu[anchor.day] = {
       date: dayData.date,
-      breakfast: clean(dayData.breakfast.join(" ")),
-      lunch: clean(dayData.lunch.join(" ")),
-      dinner: clean(dayData.dinner.join(" "))
+      breakfast: cleanArray(dayData.breakfast),
+      lunch: cleanArray(dayData.lunch),
+      dinner: cleanArray(dayData.dinner)
     };
   });
 
   return menu;
 }
 
-function clean(text) {
-  if (!text) return "";
-  return text
-    .replace(/\b(BREAKFAST|LUNCH|DINNER|TIME|TO)\b/gi, "")
-    .replace(/\s+/g, " ")
-    .replace(/OFF/i, "❌ OFF")
-    .trim();
+function cleanArray(arr) {
+  if (!arr || arr.length === 0) return "";
+  return arr.map(text => {
+    return text
+      .replace(/\b(BREAKFAST|LUNCH|DINNER|TIME|TO)\b/gi, "")
+      // Strip redundant leading day names bleeding into meal boxes e.g., "MONDAY - POHA" -> "POHA"
+      .replace(/\b(MONDAY|TUESDAY|WEDNESDAY|THURSDAY|FRIDAY|SATURDAY|SUNDAY)\b\s*[-–]?\s*/gi, "")
+      .replace(/\s+/g, " ")
+      .replace(/^OFF$/i, "❌ OFF")
+      .trim();
+  }).filter(t => t.length > 0).join(" ");
 }
 
 function capitalize(w) { return w.charAt(0) + w.slice(1).toLowerCase(); }

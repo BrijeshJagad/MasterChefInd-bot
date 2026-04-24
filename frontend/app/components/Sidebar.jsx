@@ -13,11 +13,13 @@ import MoonIcon from '@mui/icons-material/Brightness4';
 import SunIcon from '@mui/icons-material/Brightness7';
 import LinkedInIcon from '@mui/icons-material/LinkedIn';
 import GitHubIcon from '@mui/icons-material/GitHub';
+import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
+import LockOpenOutlinedIcon from '@mui/icons-material/LockOpenOutlined';
 import { useColorMode } from '../ThemeRegistry';
 
 const DRAWER_WIDTH = 260;
 
-export default function Sidebar({ weeks, selectedWeek, onSelectWeek, mobileOpen, onMobileToggle }) {
+export default function Sidebar({ weeks, selectedWeek, onSelectWeek, mobileOpen, onMobileToggle, isAdmin, onAdminToggle, onAdminLogout }) {
   const theme = useTheme();
   const colorMode = useColorMode();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
@@ -71,32 +73,22 @@ export default function Sidebar({ weeks, selectedWeek, onSelectWeek, mobileOpen,
       <Box sx={{ mt: 'auto' }}>
         <Divider sx={{ my: 2, opacity: 0.1 }} />
 
-        <Stack spacing={2} sx={{ mb: 2 }}>
+        <Stack spacing={1} sx={{ mb: 2 }}>
           <Button
             fullWidth
-            variant="contained"
             size="small"
-            startIcon={<CloudUploadIcon sx={{ fontSize: '1rem' }} />}
-            href="/admin"
-            sx={{ py: 1.2, borderRadius: '10px', fontWeight: 800, fontSize: '0.75rem' }}
-          >
-            Upload New
-          </Button>
-
-          <Stack direction="row" spacing={1}>
-            <Button
-              fullWidth
-              size="small"
-              target="_blank"
+            target="_blank"
               href="https://t.me/MasterChefInd_bot"
               startIcon={<TelegramIcon sx={{ fontSize: '1rem' }} />}
               sx={{
                 bgcolor: 'rgba(255,255,255,0.05)',
-                borderRadius: '10px',
+                borderRadius: '8px',
                 color: 'text.primary',
                 fontWeight: 700,
-                fontSize: '0.75rem',
-                textTransform: 'none'
+                fontSize: '0.70rem',
+                textTransform: 'none',
+                minWidth: 0,
+                px: 1
               }}
             >
               Telegram
@@ -106,19 +98,39 @@ export default function Sidebar({ weeks, selectedWeek, onSelectWeek, mobileOpen,
               fullWidth
               size="small"
               onClick={colorMode.toggleColorMode}
-              startIcon={theme.palette.mode === 'dark' ? <SunIcon sx={{ fontSize: '1rem' }} /> : <MoonIcon sx={{ fontSize: '1rem' }} />}
+              startIcon={theme.palette.mode === 'dark' ? <SunIcon sx={{ fontSize: '0.9rem' }} /> : <MoonIcon sx={{ fontSize: '0.9rem' }} />}
               sx={{
-                bgcolor: 'rgba(255,255,255,0.05)',
-                borderRadius: '10px',
+                bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)',
+                borderRadius: '8px',
                 color: 'text.primary',
                 fontWeight: 700,
-                fontSize: '0.75rem',
-                textTransform: 'none'
+                fontSize: '0.70rem',
+                textTransform: 'none',
+                minWidth: 0,
+                px: 1
               }}
             >
-              {theme.palette.mode === 'dark' ? 'Light' : 'Dark'}
+              Mode
             </Button>
-          </Stack>
+
+            <Button
+              fullWidth
+              size="small"
+              onClick={isAdmin ? onAdminLogout : onAdminToggle}
+              startIcon={isAdmin ? <LockOpenOutlinedIcon sx={{ fontSize: '0.9rem' }} /> : <LockOutlinedIcon sx={{ fontSize: '0.9rem' }} />}
+              sx={{
+                bgcolor: isAdmin ? 'rgba(239, 68, 68, 0.1)' : 'rgba(59, 130, 246, 0.1)',
+                borderRadius: '8px',
+                color: isAdmin ? 'error.main' : 'primary.main',
+                fontWeight: 700,
+                fontSize: '0.70rem',
+                textTransform: 'none',
+                minWidth: 0,
+                px: 1
+              }}
+            >
+              {isAdmin ? 'End Admin Session' : 'Admin Login'}
+            </Button>
         </Stack>
         <Divider sx={{ my: 1, opacity: 0.75 }} />
         <Box sx={{ textAlign: 'center', pb: 2 }}>
