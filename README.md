@@ -12,17 +12,24 @@ A **production-grade canteen management ecosystem** featuring a high-fidelity we
 *   **Modern Aesthetics**: Glassmorphism 3.0 icons, smooth transitions, and a curated deep-slate dark mode.
 *   **Fully Responsive**: PWA-ready layout that adapts perfectly from mobile devices to desktop monitors.
 *   **Interactive History**: Navigate through all historical menu data with a persistent sidebar.
+*   **Admin Tools**: Full suite of live-edit controls, smart forms, and drag-and-drop PDF ingestion protected by JWT authentication.
 *   **One-Click Export**: Download any weekly menu as a professional PDF or raw JSON data.
 
 ### 🤖 Intelligent Telegram Bot
 *   **Document Parsing**: Automatically extracts menu data from floating-coordinate PDFs.
-*   **Broadcast Ready**: Direct integration with the MasterChef community for instant updates.
-*   **Admin Controls**: Securely upload and manage menus directly via Telegram or the web portal.
+*   **Broadcast Ready**: Global Announcements system automatically pushes critical updates to registered users.
+*   **Admin Controls**: Securely upload and manage menus directly via Telegram.
+*   **Personalized Routing**: Set precise individual timing configurations (HH:MM) to receive menu alerts dynamically.
+
+### 🛠️ Robust APIs & Integrations
+*   **Strict IST Enforcement**: Native Indian Standard Time (IST) offset computation ensures daily menu turnovers are pinpoint accurate regardless of server locale.
+*   **Next Meal Endpoint (`/api/next-meal`)**: Provides contextual real-time data indicating the upcoming menu item. Highly compatible with **iOS Shortcuts** and Siri ("Hey Siri, what's for dinner?").
+*   **Historical Data (`/api/all-weeks-data`)**: Open REST endpoint for retrieving all menu history instantly in lightweight JSON.
 
 ### 🛡️ Hardened Backend
 *   **Unified Server**: Orchestrates Next.js, Express, and Telegram Polling in a single high-performance process.
 *   **Security First**: Integrated with `helmet` for headers, `express-rate-limit` for API protection, and password-validated admin routes.
-*   **Weekly Indexing**: Robust `YYYYWW` indexing system for bulletproof data retrieval.
+*   **Weekly Indexing**: Robust `YYYYWW` indexing system ensures bulletproof data retrieval without cross-week bleeding.
 
 ---
 
