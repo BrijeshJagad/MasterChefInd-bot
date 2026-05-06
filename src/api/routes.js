@@ -60,12 +60,12 @@ function setupApiRoutes(app) {
       const weekKey = req.query.week || getWeekKey();
       const menuDoc = await getMenu(weekKey);
       if (!menuDoc || !menuDoc.data) return res.status(404).json({ error: "Menu not found for current week" });
-      
+
       const day = getDay(0);
       const dayData = menuDoc.data[day];
-      
+
       if (!dayData) return res.status(404).json({ error: `Menu for ${day} not found` });
-      
+
       res.json({
         success: true,
         weekKey: menuDoc.weekKey,
@@ -86,10 +86,10 @@ function setupApiRoutes(app) {
       const weekKey = req.query.week || null;
       const menuDoc = await getMenu(weekKey);
       if (!menuDoc || !menuDoc.data) return res.status(404).json({ error: "Menu not found" });
-      res.json({ 
-        success: true, 
+      res.json({
+        success: true,
         weekKey: menuDoc.weekKey,
-        menu: menuDoc.data 
+        menu: menuDoc.data
       });
     } catch (err) {
       res.status(500).json({ error: "Server error" });
@@ -101,13 +101,43 @@ function setupApiRoutes(app) {
     try {
       const { getMenu } = require("../services/menu");
       const { getDay, getWeekKey, getISTDate } = require("../services/utils");
-      
+      const { User } = require("../services/models");
+
+      const chatId = req.query.chatId;
+
+      // Default static cutoffs
+      let cutoffBreakfast = 9.5;  // 10:00 AM
+      let cutoffLunch = 14;      // 3:00 PM
+      let cutoffRollover = 22; // 10:30 PM
+
+      // If a chatId is provided, calculate cutoffs based on their custom notification timings
+      if (chatId) {
+        const user = await User.findOne({ chatId });
+        if (user && user.timing) {
+          const timeToFloat = (str) => {
+            if (!str) return 0;
+            const [h, m] = str.split(':').map(Number);
+            return h + (m || 0) / 60;
+          };
+
+          const tLunch = timeToFloat(user.timing.lunch) || 11;
+          const tDinner = timeToFloat(user.timing.dinner) || 20;
+
+          // Next meal becomes Lunch at the Lunch reminder time
+          // Next meal becomes Dinner at the Dinner reminder time
+          // Rollover to next day occurs 2.5 hours after Dinner reminder time
+          cutoffBreakfast = tLunch;
+          cutoffLunch = tDinner;
+          cutoffRollover = tDinner + 2.5;
+        }
+      }
+
       const istDate = getISTDate();
       const hour = istDate.getHours();
       const min = istDate.getMinutes();
       const timeFloat = hour + min / 60;
 
-      const targetOffset = timeFloat >= 22.5 ? 1 : 0;
+      const targetOffset = timeFloat >= cutoffRollover ? 1 : 0;
       const targetDate = getISTDate(targetOffset);
       const targetWeekKey = getWeekKey(targetDate);
 
@@ -121,10 +151,10 @@ function setupApiRoutes(app) {
       let nextMeal = "";
       let menu = "";
 
-      if (targetOffset === 1 || timeFloat < 10) {
+      if (targetOffset === 1 || timeFloat < cutoffBreakfast) {
         nextMeal = "breakfast";
         menu = dayData.breakfast;
-      } else if (timeFloat < 15) {
+      } else if (timeFloat < cutoffLunch) {
         nextMeal = "lunch";
         menu = dayData.lunch;
       } else {
@@ -162,7 +192,7 @@ function setupApiRoutes(app) {
       if (!menuDoc || !menuDoc.pdfBuffer) {
         return res.status(404).send("PDF not found.");
       }
-      
+
       res.setHeader("Content-Type", menuDoc.contentType || "application/pdf");
       res.setHeader("Content-Disposition", `attachment; filename="${menuDoc.fileName || 'menu.pdf'}"`);
       res.send(menuDoc.pdfBuffer);
@@ -179,7 +209,7 @@ function setupApiRoutes(app) {
       if (!menuDoc || !menuDoc.data) {
         return res.status(404).send("Menu data not found.");
       }
-      
+
       res.setHeader("Content-Type", "application/json");
       res.setHeader("Content-Disposition", `attachment; filename="menu_${menuDoc.weekKey}.json"`);
       res.send(JSON.stringify(menuDoc.data, null, 2));
@@ -206,10 +236,10 @@ function setupApiRoutes(app) {
       }, weekKey);
 
       if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath);
-      res.json({ 
-        success: true, 
+      res.json({
+        success: true,
         message: `Menu for Week ${weekKey} uploaded and parsed successfully!`,
-        weekKey 
+        weekKey
       });
     } catch (err) {
       console.error("Upload error:", err);
@@ -234,7 +264,7 @@ function setupApiRoutes(app) {
         fileName: `MasterChef_Menu_W${weekKey}.pdf`,
         contentType: 'application/pdf'
       }, weekKey);
-      
+
       res.json({ success: true, message: `Menu for Week ${weekKey} created and PDF synthesized successfully.` });
     } catch (err) {
       console.error("Create error:", err);
@@ -247,7 +277,7 @@ function setupApiRoutes(app) {
     try {
       const { weekKey } = req.params;
       const { menuData } = req.body;
-      
+
       if (!menuData) {
         return res.status(400).json({ error: "Missing menuData in request body." });
       }
@@ -261,7 +291,7 @@ function setupApiRoutes(app) {
         fileName: `MasterChef_Menu_W${weekKey}_Edited.pdf`,
         contentType: 'application/pdf'
       }, weekKey);
-      
+
       res.json({ success: true, message: `Menu for Week ${weekKey} updated and PDF regenerated successfully.` });
     } catch (err) {
       console.error("Update error:", err);
@@ -309,9 +339,9 @@ function setupApiRoutes(app) {
       const users = await User.find({ reminders: true }); // Broadcasting to those with reminders on.
       const bot = getBot();
       let broadcastCount = 0;
-      
+
       const broadcastMsg = `📢 *Announcement:*\n\n${announcement.message}`;
-      
+
       for (const user of users) {
         try {
           await bot.sendMessage(user.chatId, broadcastMsg, { parse_mode: "Markdown" });
@@ -321,10 +351,10 @@ function setupApiRoutes(app) {
         }
       }
 
-      res.json({ 
-        success: true, 
+      res.json({
+        success: true,
         message: `Announcement created and mapped to ${broadcastCount} users successfully!`,
-        announcement 
+        announcement
       });
     } catch (err) {
       console.error("Create announcement error:", err);

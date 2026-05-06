@@ -22,7 +22,8 @@ function initHandlers() {
     { command: 'announcements', description: 'Latest platform updates' },
     { command: 'settings', description: 'Configure notification times' },
     { command: 'on', description: 'Enable daily reminders' },
-    { command: 'off', description: 'Privacy mode: Disable reminders' }
+    { command: 'off', description: 'Privacy mode: Disable reminders' },
+    { command: 'widget', description: 'Get your personalized API link' }
   ]).catch(err => console.error("Could not set bot commands:", err.message));
 
   async function ensureUser(chatId) {
@@ -55,6 +56,7 @@ function initHandlers() {
           { text: "📢 Announcements", callback_data: "announcements" }
         ],
         [
+          { text: "📱 Get Widget URL", callback_data: "widget_url" },
           { text: "⚙️ Notification Settings", callback_data: "settings" }
         ]
       ]
@@ -246,7 +248,7 @@ function initHandlers() {
     }
 
     if (action.startsWith("set_")) {
-      const mealType = action.replace("set_", ""); 
+      const mealType = action.replace("set_", "");
       pendingTimeUpdates.set(chatId, { mealType, timestamp: Date.now() });
       return bot.sendMessage(chatId, `⏳ Please send the new time for *${mealType.charAt(0).toUpperCase() + mealType.slice(1)}* in \`HH:MM\` format (24-hour clock, e.g., \`07:30\` or \`19:00\`).`, { parse_mode: "Markdown" });
     }
@@ -264,6 +266,12 @@ function initHandlers() {
       });
 
       return bot.sendMessage(chatId, text, { parse_mode: "Markdown", reply_markup: { inline_keyboard: [[{ text: "🏠 Home", callback_data: "home" }]] } });
+    }
+
+    if (action === "widget_url") {
+      const url = `https://masterchefind-bot.onrender.com/api/next-meal?chatId=${chatId}`;
+      const text = `📱 *Personalized Widget URL*\n\nHere is your unique API endpoint for iOS Shortcuts or Android widgets. It is securely linked to your account and uses your custom meal notification timings!\n\n\`${url}\`\n\n_Tap the link above to copy it._`;
+      return bot.sendMessage(chatId, text, { parse_mode: "Markdown", reply_markup: await sendMainMenu(chatId, true) });
     }
   });
 
@@ -365,6 +373,13 @@ function initHandlers() {
     });
 
     bot.sendMessage(msg.chat.id, text, { parse_mode: "Markdown" });
+  });
+
+  bot.onText(/\/widget/, async msg => {
+    const chatId = msg.chat.id;
+    const url = `https://masterchefind-bot.onrender.com/api/next-meal?chatId=${chatId}`;
+    const text = `📱 *Personalized Widget URL*\n\nHere is your unique API endpoint for iOS Shortcuts or Android widgets. It is securely linked to your account and uses your custom meal notification timings!\n\n\`${url}\`\n\n_Tap the link above to copy it._`;
+    bot.sendMessage(chatId, text, { parse_mode: "Markdown" });
   });
 
   console.log("🤖 Telegram Handlers initialized");

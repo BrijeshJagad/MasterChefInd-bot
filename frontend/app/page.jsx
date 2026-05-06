@@ -111,7 +111,7 @@ function HomeContent() {
   }, []);
 
   useEffect(() => {
-    fetch('/api/weeks')
+    fetch(`/api/weeks?_t=${Date.now()}`, { cache: 'no-store' })
       .then(res => res.json())
       .then(data => {
         if (data.success && data.weeks.length > 0) {
@@ -136,7 +136,7 @@ function HomeContent() {
   useEffect(() => {
     if (!selectedWeek) return;
     setLoading(true);
-    fetch(`/api/menu?week=${selectedWeek}`)
+    fetch(`/api/menu?week=${selectedWeek}&_t=${Date.now()}`, { cache: 'no-store' })
       .then(res => res.json())
       .then(data => {
         if (data.success) {
@@ -165,7 +165,7 @@ function HomeContent() {
   }, [loading, menuData, todayName]);
 
   const refreshWeeks = () => {
-    fetch('/api/weeks')
+    fetch(`/api/weeks?_t=${Date.now()}`, { cache: 'no-store' })
       .then(res => res.json())
       .then(data => {
         if (data.success) {
@@ -305,7 +305,7 @@ function HomeContent() {
         refreshWeeks();
         if (targetWeek === selectedWeek) {
           // Force active view refresh
-          const updated = await fetch(`/api/menu?week=${targetWeek}`).then(r => r.json());
+          const updated = await fetch(`/api/menu?week=${targetWeek}&_t=${Date.now()}`, { cache: 'no-store' }).then(r => r.json());
           if (updated.success) setMenuData(updated.menu);
         } else if (isCreateMode) {
           setSelectedWeek(targetWeek);
