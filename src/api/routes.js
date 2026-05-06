@@ -124,7 +124,7 @@ function setupApiRoutes(app) {
       if (targetOffset === 1 || timeFloat < 10) {
         nextMeal = "breakfast";
         menu = dayData.breakfast;
-      } else if (timeFloat < 15) {
+      } else if (timeFloat < 14) {
         nextMeal = "lunch";
         menu = dayData.lunch;
       } else {
