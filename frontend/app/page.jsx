@@ -265,11 +265,14 @@ function HomeContent() {
     const initializedData = {};
     DAYS.forEach(day => {
       const key = day.toUpperCase();
+      const existingKey = Object.keys(menuData).find(k => k.toUpperCase() === key);
+      const dayRecord = existingKey ? menuData[existingKey] : {};
+      
       initializedData[key] = {
-        date: menuData[key]?.date || '',
-        breakfast: menuData[key]?.breakfast || '',
-        lunch: menuData[key]?.lunch || '',
-        dinner: menuData[key]?.dinner || ''
+        date: dayRecord.date || '',
+        breakfast: dayRecord.breakfast || '',
+        lunch: dayRecord.lunch || '',
+        dinner: dayRecord.dinner || ''
       };
     });
     setEditData(initializedData);
@@ -680,16 +683,16 @@ function HomeContent() {
           const dayKey = day.toUpperCase();
           const data = editData[dayKey] || {};
           return (
-            <Box key={day} sx={{ borderRadius: '20px', p: 4, mb: 4, bgcolor: '#FFFFFF', border: '1px solid #E2E8F0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
+            <Box key={day} sx={{ borderRadius: '20px', p: 4, mb: 4, bgcolor: 'var(--bg-card)', border: '1px solid var(--glass-border)', boxShadow: 'var(--shadow-soft)' }}>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-                <Typography variant="h5" sx={{ color: '#1B254B', fontWeight: 900 }}>{day}</Typography>
+                <Typography variant="h5" sx={{ color: 'var(--text-primary)', fontWeight: 900 }}>{day}</Typography>
                 <TextField
                   label="Date"
                   placeholder="MM/DD"
                   variant="standard"
                   value={data.date || ''}
                   onChange={e => handleEditChange(dayKey, 'date', e.target.value)}
-                  sx={{ width: 80, '& .MuiInputBase-input': { fontWeight: 800, color: 'primary.main', textAlign: 'right' } }}
+                  sx={{ width: 80, '& .MuiInputBase-input': { fontWeight: 800, color: 'primary.main', textAlign: 'right' }, '& .MuiInputLabel-root': { color: 'var(--text-secondary)' } }}
                 />
               </Box>
 
@@ -699,7 +702,7 @@ function HomeContent() {
                   label="🍳 Breakfast"
                   value={data.breakfast || ''}
                   onChange={e => handleEditChange(dayKey, 'breakfast', e.target.value)}
-                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: '12px', bgcolor: '#F8FAFC' } }}
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: '12px', bgcolor: 'var(--bg-color)' }, '& .MuiInputBase-input': { color: 'var(--text-primary)' }, '& .MuiInputLabel-root': { color: 'var(--text-secondary)' } }}
                 />
                 <TextField
                   fullWidth
@@ -708,7 +711,7 @@ function HomeContent() {
                   label="🍛 Lunch"
                   value={data.lunch || ''}
                   onChange={e => handleEditChange(dayKey, 'lunch', e.target.value)}
-                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: '12px', bgcolor: '#F8FAFC' } }}
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: '12px', bgcolor: 'var(--bg-color)' }, '& .MuiInputBase-input': { color: 'var(--text-primary)' }, '& .MuiInputLabel-root': { color: 'var(--text-secondary)' } }}
                 />
                 <TextField
                   fullWidth
@@ -717,7 +720,7 @@ function HomeContent() {
                   label="🥣 Dinner"
                   value={data.dinner || ''}
                   onChange={e => handleEditChange(dayKey, 'dinner', e.target.value)}
-                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: '12px', bgcolor: '#F8FAFC' } }}
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: '12px', bgcolor: 'var(--bg-color)' }, '& .MuiInputBase-input': { color: 'var(--text-primary)' }, '& .MuiInputLabel-root': { color: 'var(--text-secondary)' } }}
                 />
               </Stack>
             </Box>
