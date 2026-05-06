@@ -88,7 +88,17 @@ function HomeContent() {
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
   const todayName = useMemo(() => {
-    return new Date().toLocaleDateString('en-US', { weekday: 'long' });
+    const dStr = new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" });
+    return new Date(dStr).toLocaleDateString('en-US', { weekday: 'long' });
+  }, []);
+
+  const currentWeekKey = useMemo(() => {
+    const dStr = new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" });
+    const d = new Date(dStr);
+    d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+    const weekNo = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+    return `${d.getUTCFullYear()}${weekNo.toString().padStart(2, '0')}`;
   }, []);
 
   // Check auth on load
@@ -488,7 +498,7 @@ function HomeContent() {
           }}
         >
           {days.map((day, idx) => {
-            const isToday = day.toUpperCase() === todayName.toUpperCase();
+            const isToday = selectedWeek === currentWeekKey && day.toUpperCase() === todayName.toUpperCase();
             return (
               <Box
                 key={day}

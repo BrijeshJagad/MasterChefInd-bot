@@ -4,7 +4,7 @@ const path = require("path");
 const { getBot } = require("./bot");
 const { User, Menu, Announcement } = require("../services/models");
 const { getMenu, saveMenu, getAvailableWeeks } = require("../services/menu");
-const { getDay, formatMenu, formatFullMenu, getWeekKey } = require("../services/utils");
+const { getDay, formatMenu, formatFullMenu, getWeekKey, getISTDate } = require("../services/utils");
 const { parseMenuFromPDF } = require("../services/parser");
 
 // Simple in-memory state for password challenge and time settings
@@ -184,22 +184,25 @@ function initHandlers() {
       });
     }
 
-    const menuDoc = await getMenu();
-    const currentWeekKey = getWeekKey();
-    const isLatestArchive = menuDoc && menuDoc.weekKey !== currentWeekKey;
-
     if (action === "today") {
       const day = getDay(0);
-      const statusPrefix = isLatestArchive ? `⚠️ _Note: Showing Week ${menuDoc.weekKey}_\n` : "";
-      return bot.sendMessage(chatId, statusPrefix + formatMenu(day, menuDoc?.data), { parse_mode: "Markdown", reply_markup: await sendMainMenu(chatId, true) });
+      const weekKey = getWeekKey(getISTDate(0));
+      const menuDoc = await getMenu(weekKey);
+      if (!menuDoc) return bot.sendMessage(chatId, "⚠️ Menu not uploaded for this week yet.", { reply_markup: await sendMainMenu(chatId, true) });
+      return bot.sendMessage(chatId, formatMenu(day, menuDoc.data), { parse_mode: "Markdown", reply_markup: await sendMainMenu(chatId, true) });
     }
     if (action === "tomorrow") {
       const day = getDay(1);
-      const statusPrefix = isLatestArchive ? `⚠️ _Note: Showing Week ${menuDoc.weekKey}_\n` : "";
-      return bot.sendMessage(chatId, statusPrefix + `📅 *Tomorrow*\n\n${formatMenu(day, menuDoc?.data)}`, { parse_mode: "Markdown", reply_markup: await sendMainMenu(chatId, true) });
+      const weekKey = getWeekKey(getISTDate(1));
+      const menuDoc = await getMenu(weekKey);
+      if (!menuDoc) return bot.sendMessage(chatId, "⚠️ Menu not uploaded for tomorrow yet.", { reply_markup: await sendMainMenu(chatId, true) });
+      return bot.sendMessage(chatId, `📅 *Tomorrow*\n\n${formatMenu(day, menuDoc.data)}`, { parse_mode: "Markdown", reply_markup: await sendMainMenu(chatId, true) });
     }
     if (action === "all") {
-      const statusPrefix = isLatestArchive ? `⚠️ _Showing Latest Available Menu (Week ${menuDoc.weekKey})_\n\n` : "";
+      const menuDoc = await getMenu();
+      const currentWeekKey = getWeekKey(getISTDate(0));
+      const isLatestArchive = menuDoc && menuDoc.weekKey !== currentWeekKey;
+      const statusPrefix = isLatestArchive ? `⚠️ _Showing Latest Available Menu (Week ${menuDoc?.weekKey})_\n\n` : "";
       return bot.sendMessage(chatId, statusPrefix + formatFullMenu(menuDoc?.data), { parse_mode: "Markdown", reply_markup: await sendMainMenu(chatId, true) });
     }
     if (action.startsWith("download_pdf")) {
@@ -298,19 +301,26 @@ function initHandlers() {
   });
 
   bot.onText(/\/today/, async msg => {
-    const menuDoc = await getMenu();
-    bot.sendMessage(msg.chat.id, formatMenu(getDay(0), menuDoc?.data), { parse_mode: "Markdown", reply_markup: await sendMainMenu(msg.chat.id, true) });
+    const weekKey = getWeekKey(getISTDate(0));
+    const menuDoc = await getMenu(weekKey);
+    if (!menuDoc) return bot.sendMessage(msg.chat.id, "⚠️ Menu not uploaded for this week yet.", { reply_markup: await sendMainMenu(msg.chat.id, true) });
+    bot.sendMessage(msg.chat.id, formatMenu(getDay(0), menuDoc.data), { parse_mode: "Markdown", reply_markup: await sendMainMenu(msg.chat.id, true) });
   });
 
   bot.onText(/\/tomorrow/, async msg => {
-    const menuDoc = await getMenu();
+    const weekKey = getWeekKey(getISTDate(1));
+    const menuDoc = await getMenu(weekKey);
+    if (!menuDoc) return bot.sendMessage(msg.chat.id, "⚠️ Menu not uploaded for tomorrow yet.", { reply_markup: await sendMainMenu(msg.chat.id, true) });
     const day = getDay(1);
-    bot.sendMessage(msg.chat.id, `📅 Tomorrow\n\n${formatMenu(day, menuDoc?.data)}`, { parse_mode: "Markdown", reply_markup: await sendMainMenu(msg.chat.id, true) });
+    bot.sendMessage(msg.chat.id, `📅 Tomorrow\n\n${formatMenu(day, menuDoc.data)}`, { parse_mode: "Markdown", reply_markup: await sendMainMenu(msg.chat.id, true) });
   });
 
   bot.onText(/\/all/, async msg => {
     const menuDoc = await getMenu();
-    bot.sendMessage(msg.chat.id, formatFullMenu(menuDoc?.data), { parse_mode: "Markdown", reply_markup: await sendMainMenu(msg.chat.id, true) });
+    const currentWeekKey = getWeekKey(getISTDate(0));
+    const isLatestArchive = menuDoc && menuDoc.weekKey !== currentWeekKey;
+    const statusPrefix = isLatestArchive ? `⚠️ _Showing Latest Available Menu (Week ${menuDoc?.weekKey})_\n\n` : "";
+    bot.sendMessage(msg.chat.id, statusPrefix + formatFullMenu(menuDoc?.data), { parse_mode: "Markdown", reply_markup: await sendMainMenu(msg.chat.id, true) });
   });
 
   bot.onText(/\/on/, async msg => {

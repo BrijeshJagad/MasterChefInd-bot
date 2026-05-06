@@ -56,9 +56,10 @@ function setupApiRoutes(app) {
   // API: Get Today's Menu (Always for the current week usually, but can be targeted)
   app.get("/api/today", async (req, res) => {
     try {
-      const weekKey = req.query.week || null;
+      const { getWeekKey } = require("../services/utils");
+      const weekKey = req.query.week || getWeekKey();
       const menuDoc = await getMenu(weekKey);
-      if (!menuDoc || !menuDoc.data) return res.status(404).json({ error: "Menu not found" });
+      if (!menuDoc || !menuDoc.data) return res.status(404).json({ error: "Menu not found for current week" });
       
       const day = getDay(0);
       const dayData = menuDoc.data[day];
@@ -90,6 +91,64 @@ function setupApiRoutes(app) {
         weekKey: menuDoc.weekKey,
         menu: menuDoc.data 
       });
+    } catch (err) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // API: Get Next Meal based on current time
+  app.get("/api/next-meal", async (req, res) => {
+    try {
+      const { getMenu } = require("../services/menu");
+      const { getDay, getWeekKey, getISTDate } = require("../services/utils");
+      
+      const istDate = getISTDate();
+      const hour = istDate.getHours();
+      const min = istDate.getMinutes();
+      const timeFloat = hour + min / 60;
+
+      const targetOffset = timeFloat >= 22.5 ? 1 : 0;
+      const targetDate = getISTDate(targetOffset);
+      const targetWeekKey = getWeekKey(targetDate);
+
+      const menuDoc = await getMenu(targetWeekKey);
+      if (!menuDoc || !menuDoc.data) return res.status(404).json({ error: "Menu not found for current week" });
+
+      const day = getDay(targetOffset);
+      const dayData = menuDoc.data[day];
+      if (!dayData) return res.status(404).json({ error: `Menu for ${day} not found` });
+
+      let nextMeal = "";
+      let menu = "";
+
+      if (targetOffset === 1 || timeFloat < 10) {
+        nextMeal = "breakfast";
+        menu = dayData.breakfast;
+      } else if (timeFloat < 15) {
+        nextMeal = "lunch";
+        menu = dayData.lunch;
+      } else {
+        nextMeal = "dinner";
+        menu = dayData.dinner;
+      }
+
+      res.json({
+        success: true,
+        day: day,
+        meal: nextMeal,
+        menu: menu || "—"
+      });
+    } catch (err) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // API: Get all weeks data as JSON
+  app.get("/api/all-weeks-data", async (req, res) => {
+    try {
+      const { Menu } = require("../services/models");
+      const menus = await Menu.find({}, { pdfBuffer: 0 }).sort({ weekKey: -1 });
+      res.json({ success: true, data: menus });
     } catch (err) {
       res.status(500).json({ error: "Server error" });
     }
