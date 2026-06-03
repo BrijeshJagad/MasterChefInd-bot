@@ -29,4 +29,14 @@ const announcementSchema = new mongoose.Schema({
 });
 const Announcement = mongoose.model("Announcement", announcementSchema);
 
-module.exports = { User, Menu, Announcement };
+// ===== Dinner Poll Schema =====
+const dinnerPollSchema = new mongoose.Schema({
+  date: { type: String, unique: true },       // YYYY-MM-DD IST
+  votes: { type: Map, of: String, default: {} },      // chatId -> HH:MM
+  messageIds: { type: Map, of: Number, default: {} }, // chatId -> messageId for live editing
+  status: { type: String, default: "open" },  // open | closed | notified
+  winningTime: String
+});
+const DinnerPoll = mongoose.model("DinnerPoll", dinnerPollSchema);
+
+module.exports = { User, Menu, Announcement, DinnerPoll };
