@@ -90,11 +90,13 @@ graph TD
 
 ---
 
-## 👤 Maintainer
+## 👤 Maintainers
 
 **Brijesh Jagad**  
 [![LinkedIn](https://img.shields.io/badge/-LinkedIn-blue?style=flat&logo=linkedin)](https://in.linkedin.com/in/brijesh-jagad)
 [![GitHub](https://img.shields.io/badge/-GitHub-black?style=flat&logo=github)](https://github.com/BrijeshJagad)
 
+**Urva Suthar**
+[![GitHub](https://img.shields.io/badge/-GitHub-black?style=flat&logo=github)](https://github.com/UrvaSuthar)
 ---
 Built with the **BMAD Method** for high-velocity, high-quality development.
