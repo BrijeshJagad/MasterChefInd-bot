@@ -56,7 +56,7 @@ jobs:
           cp android/app/build/outputs/apk/debug/app-debug.apk build-output/masterchef-v1.${{ github.run_number }}.apk
 
       - name: Upload Android APK Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: masterchef-android-apk
           path: build-output/masterchef-v1.${{ github.run_number }}.apk
@@ -97,7 +97,7 @@ jobs:
           cp "$EXE_FILE" "build-output/masterchef-v1.${{ github.run_number }}.exe"
 
       - name: Upload Windows Executable Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: masterchef-windows-app
           path: build-output/masterchef-v1.${{ github.run_number }}.exe
@@ -145,7 +145,7 @@ jobs:
           zip -r "$GITHUB_WORKSPACE/build-output/masterchef-v1.${{ github.run_number }}.zip" App.app
 
       - name: Upload iOS Build Archive Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: masterchef-ios-build
           path: build-output/masterchef-v1.${{ github.run_number }}.zip
