@@ -177,7 +177,7 @@ jobs:
           path: release-assets
 
       - name: Create Official GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: v1.${{ github.run_number }}
           name: "MasterChef App Release v1.${{ github.run_number }}"
