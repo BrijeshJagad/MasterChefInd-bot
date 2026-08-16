@@ -137,9 +137,9 @@ jobs:
 
       - name: Zip and Prepare Versioned iOS App
         run: |
-          mkdir -p build-output
+          mkdir -p "$GITHUB_WORKSPACE/build-output"
           cd ios/App/build/Build/Products/Debug-iphonesimulator
-          zip -r ../../../../../build-output/masterchef-v1.${{ github.run_number }}.zip App.app
+          zip -r "$GITHUB_WORKSPACE/build-output/masterchef-v1.${{ github.run_number }}.zip" App.app
 
       - name: Upload iOS Build Archive Artifact
         uses: actions/upload-artifact@v4
