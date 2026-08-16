@@ -33,13 +33,27 @@ A **production-grade canteen management ecosystem** featuring a high-fidelity we
 
 ---
 
+### 🌐 Offline & Progressive Web App (PWA)
+*   **Dual-Layer Offline Caching**: Instantly loads cached menu records and available weeks from browser storage when disconnected or on unstable networks.
+*   **Service Worker Fallback**: Seamless asset caching (`sw.js`) and Web App Manifest (`manifest.json`) enabling one-click "Add to Home Screen" on Android, iOS, and Desktop Chrome/Edge.
+
+### 📱 Multi-Platform & Native Packaging
+*   **Android App (APK)**: Capacitor-powered native Android shell.
+*   **iOS App**: Native Xcode project generated via Capacitor.
+*   **Windows Desktop App (`.exe`)**: Standalone Electron desktop executable with offline fallback.
+*   **CI/CD Automated Builds**: Pre-configured GitHub Actions workflow (`.github/workflows/build-apps.yml`) building APKs, `.exe`, and iOS archives on every push or workflow trigger.
+
+---
+
 ## 🛠️ Tech Stack
 
-*   **Frontend**: React (Next.js 15+), Material UI 6+, Glassmorphism UI
+*   **Frontend**: React 19, Next.js (App Router, Static Export), Material UI 6+, Glassmorphism UI
+*   **Offline / PWA**: Service Worker API, LocalStorage Cache, Web App Manifest
+*   **Desktop & Mobile**: Electron, Capacitor (Android & iOS)
 *   **Backend**: Node.js, Express, Next.js Unified Routing
 *   **Bot**: `node-telegram-bot-api`
 *   **Database**: MongoDB (Mongoose)
-*   **Security**: Rate-Limiting, Helmet, Password Encryption
+*   **Security**: Rate-Limiting, Helmet, JWT Authentication
 
 ---
 
@@ -59,33 +73,69 @@ BOT_TOKEN=your_telegram_bot_token
 MONGO_URI=your_mongodb_connection_string
 ADMIN_PASSWORD=your_secure_upload_password
 PORT=3000
+NEXT_PUBLIC_API_URL=https://masterchefind-bot.onrender.com
 ```
 
-### 3. Launch
+### 3. Local Development
 ```bash
+# Start unified full-stack server
 npm run dev
+
+# Run standalone Electron Desktop app
+npm run desktop
 ```
 
 ---
 
-## 🏗️ Architecture
+## 📦 Building Native & Desktop Apps via GitHub Actions
 
-```mermaid
-graph TD
-    User((User)) --> Web[Web Dashboard]
-    User --> Bot[Telegram Bot]
-    
-    subgraph "Unified Server (Node.js)"
-        Next[Next.js App Router]
-        API[Express API]
-        BotLogic[Bot Handlers]
-    end
-    
-    Web --> Next
-    Bot --> BotLogic
-    Next --> API
-    BotLogic --> API
-    API --> Mongo[(MongoDB)]
+The repository includes a GitHub Actions workflow [`.github/workflows/build-apps.yml`](.github/workflows/build-apps.yml) that builds Android APKs, Windows executables, and iOS packages in the cloud without needing local SDK installations.
+
+### How to trigger builds in GitHub:
+1. Push your code to `main` / `master` or navigate to your GitHub Repository.
+2. Click on the **Actions** tab.
+3. Select **"Multi-Platform App Builds (Android, Windows, iOS)"** on the left menu.
+4. Click **Run workflow** -> **Run workflow**.
+5. Once the run completes, download the compiled binaries under the **Artifacts** section:
+   * **`masterchef-android-apk`**: Ready-to-install Android `.apk` file.
+   * **`masterchef-windows-app`**: Standalone Windows installer / `.exe`.
+   * **`masterchef-ios-build`**: iOS app build bundle.
+
+---
+
+## 📲 Local Build Instructions
+
+### Android (APK)
+```bash
+# 1. Build frontend static files
+npm run build
+
+# 2. Sync to Android and launch in Android Studio
+npm install --save-dev @capacitor/cli @capacitor/core @capacitor/android
+npx cap add android
+npx cap sync android
+npx cap open android
+```
+
+### Windows Desktop (`.exe`)
+```bash
+# 1. Build frontend
+npm run build
+
+# 2. Package into Windows Executable
+npx electron-builder --win --x64 -c.extraMetadata.main=electron/main.js -c.directories.output=dist-electron
+```
+
+### iOS (Xcode)
+```bash
+# 1. Build frontend
+npm run build
+
+# 2. Sync to iOS and launch Xcode (macOS required)
+npm install --save-dev @capacitor/cli @capacitor/core @capacitor/ios
+npx cap add ios
+npx cap sync ios
+npx cap open ios
 ```
 
 ---

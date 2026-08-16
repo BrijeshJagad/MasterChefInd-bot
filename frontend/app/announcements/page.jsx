@@ -8,6 +8,7 @@ import {
 import Sidebar from '../components/Sidebar';
 import CampaignIcon from '@mui/icons-material/Campaign';
 import SendIcon from '@mui/icons-material/Send';
+import { API_BASE_URL } from '../config';
 
 export default function Announcements() {
   const [announcements, setAnnouncements] = useState([]);
@@ -34,7 +35,7 @@ export default function Announcements() {
     }
 
     // Fetch Weeks for Sidebar
-    fetch('/api/weeks')
+    fetch(`${API_BASE_URL}/api/weeks`)
       .then(res => res.json())
       .then(data => setWeeks(data.weeks || []));
 
@@ -44,7 +45,7 @@ export default function Announcements() {
 
   const fetchAnnouncements = () => {
     setLoading(true);
-    fetch('/api/announcements')
+    fetch(`${API_BASE_URL}/api/announcements`)
       .then(res => res.json())
       .then(data => {
         if (data.success) setAnnouncements(data.announcements);
@@ -57,7 +58,7 @@ export default function Announcements() {
     if (!newMessage.trim()) return;
     setSending(true);
     try {
-      const res = await fetch('/api/announcements', {
+      const res = await fetch(`${API_BASE_URL}/api/announcements`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -1,0 +1,129 @@
+name: Multi-Platform App Builds (Android, Windows, iOS)
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+  workflow_dispatch:
+
+jobs:
+  # ==========================================
+  # 1. Android APK Build (Capacitor)
+  # ==========================================
+  build-android:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Build Next.js Static Export
+        run: npm run build
+        env:
+          NEXT_PUBLIC_API_URL: "https://masterchefind-bot.onrender.com"
+
+      - name: Setup Java JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: 17
+
+      - name: Install Capacitor CLI & Android
+        run: |
+          npm install --save-dev @capacitor/cli @capacitor/core @capacitor/android
+          npx cap add android || true
+          npx cap sync android
+
+      - name: Build Android Debug APK with Gradle
+        working-directory: ./android
+        run: ./gradlew assembleDebug
+
+      - name: Upload Android APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: masterchef-android-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+
+  # ==========================================
+  # 2. Windows Executable (.exe) Build (Electron)
+  # ==========================================
+  build-windows:
+    name: Build Windows Application (.exe)
+    runs-on: windows-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Build Next.js Static Export
+        run: npm run build
+        env:
+          NEXT_PUBLIC_API_URL: "https://masterchefind-bot.onrender.com"
+
+      - name: Package Windows Executable with electron-builder
+        run: npx --yes electron-builder --win --x64 -c.extraMetadata.main=electron/main.js -c.directories.output=dist-electron -c.files="frontend/out/**/*,electron/**/*"
+
+      - name: Upload Windows Executable Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: masterchef-windows-app
+          path: dist-electron/*.exe
+
+  # ==========================================
+  # 3. iOS Application Build (Capacitor / Xcode)
+  # ==========================================
+  build-ios:
+    name: Build iOS Project / App
+    runs-on: macos-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Build Next.js Static Export
+        run: npm run build
+        env:
+          NEXT_PUBLIC_API_URL: "https://masterchefind-bot.onrender.com"
+
+      - name: Install Capacitor iOS & Sync
+        run: |
+          npm install --save-dev @capacitor/cli @capacitor/core @capacitor/ios
+          npx cap add ios || true
+          npx cap sync ios
+
+      - name: Build iOS App with Xcode (No code signing / Simulator build)
+        run: |
+          cd ios/App
+          xcodebuild -workspace App.xcworkspace -scheme App -destination 'generic/platform=iOS Simulator' -derivedDataPath build CODE_SIGNING_ALLOWED=NO
+
+      - name: Upload iOS Build Archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: masterchef-ios-build
+          path: ios/App/build/Build/Products/Debug-iphonesimulator/App.app

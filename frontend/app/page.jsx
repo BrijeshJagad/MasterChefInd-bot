@@ -10,6 +10,7 @@ import {
 import Sidebar from './components/Sidebar';
 import { useSearchParams, useRouter } from 'next/navigation';
 import SuspenseBoundary from './components/SuspenseBoundary'; // I'll create this to wrap useSearchParams
+import { API_BASE_URL } from './config';
 import DownloadIcon from '@mui/icons-material/DescriptionOutlined';
 import JsonIcon from '@mui/icons-material/DataObjectOutlined';
 import MenuIcon from '@mui/icons-material/Menu';
@@ -111,19 +112,33 @@ function HomeContent() {
   }, []);
 
   useEffect(() => {
-    fetch(`/api/weeks?_t=${Date.now()}`, { cache: 'no-store' })
+    // Try loading weeks from localStorage first (offline resilience)
+    const cachedWeeks = localStorage.getItem('cached_weeks');
+    if (cachedWeeks) {
+      try {
+        const parsed = JSON.parse(cachedWeeks);
+        if (parsed && parsed.length > 0) {
+          setWeeks(parsed);
+          setSelectedWeek(urlWeek || parsed[0]);
+          setLoading(false);
+        }
+      } catch (e) {}
+    }
+
+    fetch(`${API_BASE_URL}/api/weeks?_t=${Date.now()}`)
       .then(res => res.json())
       .then(data => {
         if (data.success && data.weeks.length > 0) {
           setWeeks(data.weeks);
-          // Sync with URL parameter if present, otherwise default to latest
+          localStorage.setItem('cached_weeks', JSON.stringify(data.weeks));
           const target = urlWeek || data.weeks[0];
           setSelectedWeek(target);
-        } else {
-          setLoading(false);
         }
+        setLoading(false);
       })
-      .catch(() => setLoading(false));
+      .catch(() => {
+        setLoading(false);
+      });
   }, [urlWeek]);
 
   // Sync selectedWeek if URL parameter changes
@@ -136,17 +151,30 @@ function HomeContent() {
   useEffect(() => {
     if (!selectedWeek) return;
     setLoading(true);
-    fetch(`/api/menu?week=${selectedWeek}&_t=${Date.now()}`, { cache: 'no-store' })
+
+    // Load cached menu data immediately for offline fallback
+    const cachedMenu = localStorage.getItem(`cached_menu_${selectedWeek}`);
+    if (cachedMenu) {
+      try {
+        setMenuData(JSON.parse(cachedMenu));
+        setLoading(false);
+      } catch (e) {}
+    }
+
+    fetch(`${API_BASE_URL}/api/menu?week=${selectedWeek}&_t=${Date.now()}`)
       .then(res => res.json())
       .then(data => {
         if (data.success) {
           setMenuData(data.menu);
-        } else {
+          localStorage.setItem(`cached_menu_${selectedWeek}`, JSON.stringify(data.menu));
+        } else if (!cachedMenu) {
           setMenuData(null);
         }
         setLoading(false);
       })
-      .catch(() => setLoading(false));
+      .catch(() => {
+        setLoading(false);
+      });
   }, [selectedWeek]);
 
   const actionBtnSx = { borderRadius: '8px', fontSize: '0.75rem', fontWeight: 700, textTransform: 'none', px: 2, height: 32 };
@@ -165,7 +193,7 @@ function HomeContent() {
   }, [loading, menuData, todayName]);
 
   const refreshWeeks = () => {
-    fetch(`/api/weeks?_t=${Date.now()}`, { cache: 'no-store' })
+    fetch(`${API_BASE_URL}/api/weeks?_t=${Date.now()}`, { cache: 'no-store' })
       .then(res => res.json())
       .then(data => {
         if (data.success) {
@@ -186,7 +214,7 @@ function HomeContent() {
     e.preventDefault();
     setAuthError('');
     try {
-      const res = await fetch('/api/auth/login', {
+      const res = await fetch(`${API_BASE_URL}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ password })
@@ -221,7 +249,7 @@ function HomeContent() {
     const formData = new FormData();
     formData.append('pdf', file);
     try {
-      const res = await fetch('/api/upload', {
+      const res = await fetch(`${API_BASE_URL}/api/upload`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${jwtToken}` },
         body: formData,
@@ -288,7 +316,7 @@ function HomeContent() {
     try {
       const isCreateMode = !activeWeekKey;
       const targetWeek = isCreateMode ? newWeekKey : activeWeekKey;
-      const endpoint = isCreateMode ? '/api/menu' : `/api/menu/${targetWeek}`;
+      const endpoint = isCreateMode ? `${API_BASE_URL}/api/menu` : `${API_BASE_URL}/api/menu/${targetWeek}`;
       const method = isCreateMode ? 'POST' : 'PUT';
 
       const payload = { menuData: editData };
@@ -305,7 +333,7 @@ function HomeContent() {
         refreshWeeks();
         if (targetWeek === selectedWeek) {
           // Force active view refresh
-          const updated = await fetch(`/api/menu?week=${targetWeek}&_t=${Date.now()}`, { cache: 'no-store' }).then(r => r.json());
+          const updated = await fetch(`${API_BASE_URL}/api/menu?week=${targetWeek}&_t=${Date.now()}`, { cache: 'no-store' }).then(r => r.json());
           if (updated.success) setMenuData(updated.menu);
         } else if (isCreateMode) {
           setSelectedWeek(targetWeek);
@@ -324,7 +352,7 @@ function HomeContent() {
   const handleDeleteAction = async () => {
     if (!selectedWeek) return;
     try {
-      const res = await fetch(`/api/menu/${selectedWeek}`, {
+      const res = await fetch(`${API_BASE_URL}/api/menu/${selectedWeek}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${jwtToken}` }
       });
@@ -433,7 +461,7 @@ function HomeContent() {
             )}
 
             <Button
-              href={`/api/download/pdf?week=${selectedWeek}`}
+              href={`${API_BASE_URL}/api/download/pdf?week=${selectedWeek}`}
               variant="outlined"
               size="small"
               color="inherit"
@@ -443,7 +471,7 @@ function HomeContent() {
               PDF
             </Button>
             <Button
-              href={`/api/download/json?week=${selectedWeek}`}
+              href={`${API_BASE_URL}/api/download/json?week=${selectedWeek}`}
               variant="outlined"
               size="small"
               color="inherit"

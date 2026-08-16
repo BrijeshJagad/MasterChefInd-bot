@@ -1,0 +1,8 @@
+{
+  "appId": "com.masterchef.canteen",
+  "appName": "MasterChef Canteen",
+  "webDir": "frontend/out",
+  "server": {
+    "androidScheme": "https"
+  }
+}
