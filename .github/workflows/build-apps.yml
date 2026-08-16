@@ -21,7 +21,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: 'npm'
 
       - name: Install Dependencies
@@ -40,7 +40,7 @@ jobs:
 
       - name: Install Capacitor CLI & Android
         run: |
-          npm install --save-dev @capacitor/cli@latest @capacitor/core@latest @capacitor/android@latest
+          npm install --save-dev @capacitor/cli@^6.0.0 @capacitor/core@^6.0.0 @capacitor/android@^6.0.0
           npx cap add android || true
           npx cap sync android
 
@@ -67,7 +67,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: 'npm'
 
       - name: Install Dependencies
@@ -100,7 +100,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: 'npm'
 
       - name: Install Dependencies
@@ -113,15 +113,11 @@ jobs:
 
       - name: Install Capacitor Core & iOS
         run: |
-          npm install --save-dev @capacitor/cli@latest @capacitor/core@latest @capacitor/ios@latest
+          npm install --save-dev @capacitor/cli@^6.0.0 @capacitor/core@^6.0.0 @capacitor/ios@^6.0.0
           npx cap add ios || true
-          # Ensure minimum deployment target in Podfile is set to 14.0+
-          if [ -f "ios/App/Podfile" ]; then
-            sed -i '' "s/platform :ios, '.*'/platform :ios, '14.0'/g" ios/App/Podfile || true
-          fi
           npx cap sync ios
 
-      - name: Build iOS App with Xcode (No code signing / Simulator build)
+      - name: Build iOS App with Xcode (Simulator build)
         run: |
           cd ios/App
           xcodebuild -workspace App.xcworkspace -scheme App -destination 'generic/platform=iOS Simulator' -derivedDataPath build CODE_SIGNING_ALLOWED=NO
@@ -131,4 +127,5 @@ jobs:
         with:
           name: masterchef-ios-build
           path: ios/App/build/Build/Products/Debug-iphonesimulator/App.app
+
 
