@@ -1,11 +1,12 @@
-name: Multi-Platform App Builds (Android, Windows, iOS)
+name: Multi-Platform App Builds & GitHub Release
 
 on:
   push:
     branches: [ "main", "master" ]
-  pull_request:
-    branches: [ "main", "master" ]
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   # ==========================================
@@ -48,11 +49,16 @@ jobs:
         working-directory: ./android
         run: ./gradlew assembleDebug
 
-      - name: Upload Android APK
+      - name: Rename and Prepare Versioned APK
+        run: |
+          mkdir -p build-output
+          cp android/app/build/outputs/apk/debug/app-debug.apk build-output/masterchef-v1.${{ github.run_number }}.apk
+
+      - name: Upload Android APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: masterchef-android-apk
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          path: build-output/masterchef-v1.${{ github.run_number }}.apk
 
   # ==========================================
   # 2. Windows Executable (.exe) Build (Electron)
@@ -81,11 +87,18 @@ jobs:
       - name: Package Windows Executable with electron-builder
         run: npx --yes electron-builder --win --x64 --config electron-builder.json --publish never
 
-      - name: Upload Windows Executable Artifacts
+      - name: Rename and Prepare Versioned Windows Executable
+        shell: bash
+        run: |
+          mkdir -p build-output
+          EXE_FILE=$(ls dist-electron/*.exe | head -n 1)
+          cp "$EXE_FILE" "build-output/masterchef-v1.${{ github.run_number }}.exe"
+
+      - name: Upload Windows Executable Artifact
         uses: actions/upload-artifact@v4
         with:
           name: masterchef-windows-app
-          path: dist-electron/*.exe
+          path: build-output/masterchef-v1.${{ github.run_number }}.exe
 
   # ==========================================
   # 3. iOS Application Build (Capacitor / Xcode)
@@ -122,10 +135,61 @@ jobs:
           cd ios/App
           xcodebuild -workspace App.xcworkspace -scheme App -destination 'generic/platform=iOS Simulator' -derivedDataPath build CODE_SIGNING_ALLOWED=NO
 
-      - name: Upload iOS Build Archive
+      - name: Zip and Prepare Versioned iOS App
+        run: |
+          mkdir -p build-output
+          cd ios/App/build/Build/Products/Debug-iphonesimulator
+          zip -r ../../../../../build-output/masterchef-v1.${{ github.run_number }}.zip App.app
+
+      - name: Upload iOS Build Archive Artifact
         uses: actions/upload-artifact@v4
         with:
           name: masterchef-ios-build
-          path: ios/App/build/Build/Products/Debug-iphonesimulator/App.app
+          path: build-output/masterchef-v1.${{ github.run_number }}.zip
 
+  # ==========================================
+  # 4. Automatic GitHub Release Publishing
+  # ==========================================
+  create-release:
+    name: Publish GitHub Release
+    needs: [build-android, build-windows, build-ios]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Android Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: masterchef-android-apk
+          path: release-assets
 
+      - name: Download Windows Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: masterchef-windows-app
+          path: release-assets
+
+      - name: Download iOS Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: masterchef-ios-build
+          path: release-assets
+
+      - name: Create Official GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.${{ github.run_number }}
+          name: "MasterChef App Release v1.${{ github.run_number }}"
+          body: |
+            ### 👨‍🍳 MasterChef Canteen System v1.${{ github.run_number }}
+            
+            Automated production build assets:
+            - 🤖 **Android**: `masterchef-v1.${{ github.run_number }}.apk`
+            - 🪟 **Windows**: `masterchef-v1.${{ github.run_number }}.exe`
+            - 🍎 **iOS**: `masterchef-v1.${{ github.run_number }}.zip`
+            
+            *Connected to Live API (`https://masterchefind-bot.onrender.com`) with offline cache resilience.*
+          files: |
+            release-assets/*
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

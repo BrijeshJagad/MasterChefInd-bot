@@ -87,19 +87,16 @@ npm run desktop
 
 ---
 
-## 📦 Building Native & Desktop Apps via GitHub Actions
+## 📦 Incremental Releases & Downloads
 
-The repository includes a GitHub Actions workflow [`.github/workflows/build-apps.yml`](.github/workflows/build-apps.yml) that builds Android APKs, Windows executables, and iOS packages in the cloud without needing local SDK installations.
+Every push to `main` automatically builds and publishes an official **GitHub Release** with incremental version tags (`v1.{buildNumber}`):
 
-### How to trigger builds in GitHub:
-1. Push your code to `main` / `master` or navigate to your GitHub Repository.
-2. Click on the **Actions** tab.
-3. Select **"Multi-Platform App Builds (Android, Windows, iOS)"** on the left menu.
-4. Click **Run workflow** -> **Run workflow**.
-5. Once the run completes, download the compiled binaries under the **Artifacts** section:
-   * **`masterchef-android-apk`**: Ready-to-install Android `.apk` file.
-   * **`masterchef-windows-app`**: Standalone Windows installer / `.exe`.
-   * **`masterchef-ios-build`**: iOS app build bundle.
+### Available Release Assets:
+* 🤖 **Android**: `masterchef-v1.{version}.apk` (Direct install on Android devices)
+* 🪟 **Windows**: `masterchef-v1.{version}.exe` (Standalone Windows executable)
+* 🍎 **iOS**: `masterchef-v1.{version}.zip` (iOS application package)
+
+You can download the latest builds anytime directly from the **[Releases](https://github.com/BrijeshJagad/MasterChefInd-bot/releases)** tab on the repository page!
 
 ---
 
