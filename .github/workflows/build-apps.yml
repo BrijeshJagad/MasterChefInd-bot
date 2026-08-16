@@ -159,19 +159,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Download Android Artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: masterchef-android-apk
           path: release-assets
 
       - name: Download Windows Artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: masterchef-windows-app
           path: release-assets
 
       - name: Download iOS Artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: masterchef-ios-build
           path: release-assets
