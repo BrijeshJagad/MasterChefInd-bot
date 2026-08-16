@@ -1,0 +1,21 @@
+{
+  "appId": "com.masterchef.canteen",
+  "productName": "MasterChef Canteen",
+  "directories": {
+    "output": "dist-electron"
+  },
+  "files": [
+    "frontend/out/**/*",
+    "electron/**/*"
+  ],
+  "extraMetadata": {
+    "main": "electron/main.js"
+  },
+  "win": {
+    "target": "nsis"
+  },
+  "nsis": {
+    "oneClick": false,
+    "allowToChangeInstallationDirectory": true
+  }
+}
