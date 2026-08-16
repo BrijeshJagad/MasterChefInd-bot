@@ -36,11 +36,11 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
-          java-version: 17
+          java-version: 21
 
       - name: Install Capacitor CLI & Android
         run: |
-          npm install --save-dev @capacitor/cli @capacitor/core @capacitor/android
+          npm install --save-dev @capacitor/cli@latest @capacitor/core@latest @capacitor/android@latest
           npx cap add android || true
           npx cap sync android
 
@@ -111,10 +111,14 @@ jobs:
         env:
           NEXT_PUBLIC_API_URL: "https://masterchefind-bot.onrender.com"
 
-      - name: Install Capacitor iOS & Sync
+      - name: Install Capacitor Core & iOS
         run: |
-          npm install --save-dev @capacitor/cli @capacitor/core @capacitor/ios
+          npm install --save-dev @capacitor/cli@latest @capacitor/core@latest @capacitor/ios@latest
           npx cap add ios || true
+          # Ensure minimum deployment target in Podfile is set to 14.0+
+          if [ -f "ios/App/Podfile" ]; then
+            sed -i '' "s/platform :ios, '.*'/platform :ios, '14.0'/g" ios/App/Podfile || true
+          fi
           npx cap sync ios
 
       - name: Build iOS App with Xcode (No code signing / Simulator build)
@@ -127,3 +131,4 @@ jobs:
         with:
           name: masterchef-ios-build
           path: ios/App/build/Build/Products/Debug-iphonesimulator/App.app
+
