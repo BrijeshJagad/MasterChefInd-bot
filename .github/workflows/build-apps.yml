@@ -180,27 +180,18 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v1.${{ github.run_number }}
+          name: "MasterChef App Release v1.${{ github.run_number }}"
+          generate_release_notes: true
           body: |
-            ## 👨‍🍳 What's New in MasterChef v1.${{ github.run_number }}
-
-            ### 🌐 Offline & Persistent Caching
-            - **Instant Offline Access**: Menu items and historical weeks are now stored in dual-layer local storage so you can view your canteen menu anytime without an internet connection.
-            - **PWA Service Worker**: Full progressive web app offline fallback caching (`sw.js`) and web app manifest (`manifest.json`) for seamless "Add to Home Screen" support on mobile & desktop.
-
-            ### 📱 Native Multi-Platform Applications
-            - 🤖 **Android (`.apk`)**: Standalone Android application with native shell.
-            - 🪟 **Windows (`.exe`)**: Standalone installer for Windows PCs powered by Electron.
-            - 🍎 **iOS (`.zip`)**: Native iOS simulator build archive and Xcode workspace project.
-
-            ### ⚡ Live API & Cloud Sync
-            - Connected directly to live backend endpoint: `https://masterchefind-bot.onrender.com`.
-            - Automated weekly menu synchronization, admin authentication, PDF parsing, and Telegram broadcasts.
-
+            ### 👨‍🍳 MasterChef v1.${{ github.run_number }} Build Assets
+            
+            - 🤖 **Android**: `masterchef-v1.${{ github.run_number }}.apk`
+            - 🪟 **Windows**: `masterchef-v1.${{ github.run_number }}.exe`
+            - 🍎 **iOS**: `masterchef-v1.${{ github.run_number }}.zip`
+            
+            *Connected to Live API (`https://masterchefind-bot.onrender.com`) with offline persistence.*
+            
             ---
-            ### 📥 Download Assets Below
-            - **Android APK**: `masterchef-v1.${{ github.run_number }}.apk`
-            - **Windows Installer**: `masterchef-v1.${{ github.run_number }}.exe`
-            - **iOS Build**: `masterchef-v1.${{ github.run_number }}.zip`
           files: |
             release-assets/*
           draft: false
