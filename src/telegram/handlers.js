@@ -6,6 +6,14 @@ const { User, Menu, Announcement } = require("../services/models");
 const { getMenu, saveMenu, getAvailableWeeks } = require("../services/menu");
 const { getDay, formatMenu, formatFullMenu, getWeekKey, getISTDate } = require("../services/utils");
 const { parseMenuFromPDF } = require("../services/parser");
+const {
+  castVote,
+  getTodayPoll,
+  getOrCreateTodayPoll,
+  buildPollKeyboard,
+  storeMessageId,
+  formatTime
+} = require("../services/dinnerPoll");
 
 // Simple in-memory state for password challenge and time settings
 const pendingUploads = new Map();
@@ -19,6 +27,7 @@ function initHandlers() {
     { command: 'today', description: "Today's delicious menu" },
     { command: 'tomorrow', description: "Check what's cooking tomorrow" },
     { command: 'all', description: 'View full weekly plan' },
+    { command: 'dinnerpoll', description: 'Vote on tonight\'s dinner time' },
     { command: 'announcements', description: 'Latest platform updates' },
     { command: 'settings', description: 'Configure notification times' },
     { command: 'on', description: 'Enable daily reminders' },
@@ -48,16 +57,19 @@ function initHandlers() {
           { text: "📊 History & Stats", callback_data: "history" }
         ],
         [
+          { text: "🗳️ Dinner Vote", callback_data: "dinnerpoll" },
+          { text: "📢 Announcements", callback_data: "announcements" }
+        ],
+        [
           { text: "📑 Download PDF", callback_data: "download_pdf" },
           { text: "⚡ Web Dashboard", url: "https://masterchefind-bot.onrender.com" }
         ],
         [
           { text: toggleLabel, callback_data: toggleAction },
-          { text: "📢 Announcements", callback_data: "announcements" }
+          { text: "⚙️ Notification Settings", callback_data: "settings" }
         ],
         [
-          { text: "📱 Get Widget URL", callback_data: "widget_url" },
-          { text: "⚙️ Notification Settings", callback_data: "settings" }
+          { text: "📱 Get Widget URL", callback_data: "widget_url" }
         ]
       ]
     };
@@ -142,6 +154,40 @@ function initHandlers() {
     // IMPORTANT: Always answer immediately to stop and loading spinners
     bot.answerCallbackQuery(query.id);
 
+    // ── Dinner Poll Voting ──
+    if (action.startsWith("dinner_vote_")) {
+      const time = action.replace("dinner_vote_", "");
+      const poll = await getTodayPoll();
+
+      if (!poll || poll.status !== "open") {
+        return bot.answerCallbackQuery(query.id, { text: "⏰ Voting is closed for today.", show_alert: true });
+      }
+
+      const updatedPoll = await castVote(String(chatId), time);
+      if (!updatedPoll) {
+        return bot.answerCallbackQuery(query.id, { text: "⏰ Voting is closed for today.", show_alert: true });
+      }
+
+      const votesObj = updatedPoll.votes instanceof Map
+        ? Object.fromEntries(updatedPoll.votes)
+        : updatedPoll.votes;
+
+      const keyboard = buildPollKeyboard(votesObj);
+      const text = `🗳️ *Dinner Vote — What time tonight?*\n\nVoting closes at 7:30 PM. Tap your preferred time 👇\n\n✅ _Your vote: ${formatTime(time)}_`;
+
+      try {
+        await bot.editMessageText(text, {
+          chat_id: chatId,
+          message_id: query.message.message_id,
+          parse_mode: "Markdown",
+          reply_markup: keyboard
+        });
+      } catch (e) {
+        // Message unchanged (same vote), ignore
+      }
+      return;
+    }
+
     if (action === "history") {
       const weeks = await getAvailableWeeks();
       if (weeks.length === 0) return bot.sendMessage(chatId, "⚠️ No historical records found.");
@@ -162,6 +208,27 @@ function initHandlers() {
 
     if (action === "home") {
       return sendMainMenu(chatId);
+    }
+
+    if (action === "dinnerpoll") {
+      const existing = await getTodayPoll();
+      if (existing && existing.status === "closed") {
+        return bot.sendMessage(chatId, `📊 *Today's poll is already closed.*\n\n🏆 Dinner is at *${formatTime(existing.winningTime)}* tonight!`, { parse_mode: "Markdown", reply_markup: await sendMainMenu(chatId, true) });
+      }
+      if (existing && existing.status === "notified") {
+        return bot.sendMessage(chatId, `✅ *Tonight's dinner was at ${formatTime(existing.winningTime)}.*\n\nSee you tomorrow!`, { parse_mode: "Markdown", reply_markup: await sendMainMenu(chatId, true) });
+      }
+
+      const poll = await getOrCreateTodayPoll();
+      const votesObj = poll.votes instanceof Map ? Object.fromEntries(poll.votes) : poll.votes;
+      const userVote = votesObj[String(chatId)];
+      const keyboard = buildPollKeyboard(votesObj);
+      const footer = userVote ? `\n\n✅ _Your current vote: ${formatTime(userVote)}_` : "";
+      const text = `🗳️ *Dinner Vote — What time tonight?*\n\nVoting closes at 7:30 PM. Tap your preferred time 👇${footer}`;
+
+      const sent = await bot.sendMessage(chatId, text, { parse_mode: "Markdown", reply_markup: keyboard });
+      await storeMessageId(poll.date, String(chatId), sent.message_id);
+      return;
     }
 
     if (action.startsWith("view_week_")) {
@@ -380,6 +447,30 @@ function initHandlers() {
     const url = `https://masterchefind-bot.onrender.com/api/next-meal?chatId=${chatId}`;
     const text = `📱 *Personalized Widget URL*\n\nHere is your unique API endpoint for iOS Shortcuts or Android widgets. It is securely linked to your account and uses your custom meal notification timings!\n\n\`${url}\`\n\n_Tap the link above to copy it._`;
     bot.sendMessage(chatId, text, { parse_mode: "Markdown" });
+  });
+
+  bot.onText(/\/dinnerpoll/, async msg => {
+    const chatId = msg.chat.id;
+    await ensureUser(chatId);
+
+    const existing = await getTodayPoll();
+    if (existing && existing.status === "closed") {
+      return bot.sendMessage(chatId, `📊 *Today's poll is already closed.*\n\n🏆 Dinner is at *${formatTime(existing.winningTime)}* tonight!`, { parse_mode: "Markdown" });
+    }
+    if (existing && existing.status === "notified") {
+      return bot.sendMessage(chatId, `✅ *Tonight's dinner was at ${formatTime(existing.winningTime)}.*\n\nSee you tomorrow!`, { parse_mode: "Markdown" });
+    }
+
+    const poll = await getOrCreateTodayPoll();
+    const votesObj = poll.votes instanceof Map ? Object.fromEntries(poll.votes) : poll.votes;
+    const userVote = votesObj[String(chatId)];
+
+    const keyboard = buildPollKeyboard(votesObj);
+    const footer = userVote ? `\n\n✅ _Your current vote: ${formatTime(userVote)}_` : "";
+    const text = `🗳️ *Dinner Vote — What time tonight?*\n\nVoting closes at 7:30 PM. Tap your preferred time 👇${footer}`;
+
+    const sent = await bot.sendMessage(chatId, text, { parse_mode: "Markdown", reply_markup: keyboard });
+    await storeMessageId(poll.date, String(chatId), sent.message_id);
   });
 
   console.log("🤖 Telegram Handlers initialized");
