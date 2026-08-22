@@ -36,8 +36,16 @@ nextApp.prepare().then(async () => {
   server.use(helmet({
     contentSecurityPolicy: false, // Next.js needs inline scripts often
   }));
-  server.use(morgan(dev ? "dev" : "combined"));
-  server.use(express.json());
+  // CORS Middleware for Mobile (Capacitor/Cordova) & Cross-Origin Desktop Apps
+  server.use((req, res, next) => {
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    if (req.method === "OPTIONS") {
+      return res.sendStatus(200);
+    }
+    next();
+  });
 
   // Apply Rate Limiter to API routes
   server.use("/api/", limiter);

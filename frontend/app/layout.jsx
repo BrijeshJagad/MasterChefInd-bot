@@ -5,7 +5,8 @@ import ThemeRegistry from "./ThemeRegistry";
 
 export default function RootLayout({ children }) {
   useEffect(() => {
-    if ("serviceWorker" in navigator) {
+    // Only register service worker in standard web browsers (avoid file:// or capacitor:// conflicts)
+    if ("serviceWorker" in navigator && !window?.Capacitor && window.location.protocol.startsWith('http')) {
       navigator.serviceWorker
         .register("/sw.js")
         .then((reg) => console.log("Service Worker registered successfully:", reg.scope))

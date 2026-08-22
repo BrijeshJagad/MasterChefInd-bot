@@ -3,6 +3,10 @@
   "appName": "MasterChef Canteen",
   "webDir": "frontend/out",
   "server": {
-    "androidScheme": "https"
+    "androidScheme": "https",
+    "cleartext": true,
+    "allowNavigation": [
+      "masterchefind-bot.onrender.com"
+    ]
   }
 }
