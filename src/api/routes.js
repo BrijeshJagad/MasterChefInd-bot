@@ -34,8 +34,8 @@ function setupApiRoutes(app) {
 
   // API: Admin Authentication
   app.post("/api/auth/login", (req, res) => {
-    const { password } = req.body;
-    if (password !== process.env.ADMIN_PASSWORD) {
+    const { password } = req.body || {};
+    if (!password || password !== process.env.ADMIN_PASSWORD) {
       return res.status(401).json({ error: "Unauthorized: Invalid Admin Password" });
     }
 

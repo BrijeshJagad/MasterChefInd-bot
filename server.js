@@ -47,6 +47,10 @@ nextApp.prepare().then(async () => {
     next();
   });
 
+  server.use(morgan(dev ? "dev" : "combined"));
+  server.use(express.json());
+  server.use(express.urlencoded({ extended: true }));
+
   // Apply Rate Limiter to API routes
   server.use("/api/", limiter);
 
