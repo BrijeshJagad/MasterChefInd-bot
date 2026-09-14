@@ -24,17 +24,26 @@ function initHandlers() {
   const bot = getBot();
 
   // Set Bot Commands for the blue 'Menu' button
-  bot.setMyCommands([
+  const enableReminders = process.env.ENABLE_REMINDERS === "true" || process.env.ENABLE_REMINDERS === "1";
+  const commands = [
     { command: 'today', description: "Today's delicious menu" },
     { command: 'tomorrow', description: "Check what's cooking tomorrow" },
     { command: 'all', description: 'View full weekly plan' },
-    { command: 'dinnerpoll', description: 'Vote on tonight\'s dinner time' },
-    { command: 'announcements', description: 'Latest platform updates' },
-    { command: 'settings', description: 'Configure notification times' },
-    { command: 'on', description: 'Enable daily reminders' },
-    { command: 'off', description: 'Privacy mode: Disable reminders' },
-    { command: 'widget', description: 'Get your personalized API link' }
-  ]).catch(err => console.error("Could not set bot commands:", err.message));
+    { command: 'announcements', description: 'Latest platform updates' }
+  ];
+
+  if (enableReminders) {
+    commands.push(
+      { command: 'dinnerpoll', description: 'Vote on tonight\'s dinner time' },
+      { command: 'settings', description: 'Configure notification times' },
+      { command: 'on', description: 'Enable daily reminders' },
+      { command: 'off', description: 'Privacy mode: Disable reminders' }
+    );
+  }
+
+  commands.push({ command: 'widget', description: 'Get your personalized API link' });
+
+  bot.setMyCommands(commands).catch(err => console.error("Could not set bot commands:", err.message));
 
   async function ensureUser(chatId) {
     let user = await User.findOne({ chatId });
@@ -44,40 +53,53 @@ function initHandlers() {
 
   async function sendMainMenu(chatId, returnKeyboard = false) {
     const user = await User.findOne({ chatId }) || { reminders: true };
+    const enableReminders = process.env.ENABLE_REMINDERS === "true" || process.env.ENABLE_REMINDERS === "1";
     const toggleLabel = user.reminders ? "🔕 Turn OFF Notifications" : "🔔 Turn ON Notifications";
     const toggleAction = user.reminders ? "off" : "on";
 
-    const keyboard = {
-      inline_keyboard: [
-        [
-          { text: "🍽️ Today", callback_data: "today" },
-          { text: "📅 Tomorrow", callback_data: "tomorrow" }
-        ],
-        [
-          { text: "📋 Full Weekly Plan", callback_data: "all" },
-          { text: "📊 History & Stats", callback_data: "history" }
-        ],
-        [
-          { text: "🗳️ Dinner Vote", callback_data: "dinnerpoll" },
-          { text: "📢 Announcements", callback_data: "announcements" }
-        ],
-        [
-          { text: "📑 Download PDF", callback_data: "download_pdf" },
-          { text: "⚡ Web Dashboard", url: "https://masterchefind-bot.onrender.com" }
-        ],
-        [
-          { text: toggleLabel, callback_data: toggleAction },
-          { text: "⚙️ Notification Settings", callback_data: "settings" }
-        ],
-        [
-          { text: "📱 Get Widget URL", callback_data: "widget_url" }
-        ]
+    const rows = [
+      [
+        { text: "🍽️ Today", callback_data: "today" },
+        { text: "📅 Tomorrow", callback_data: "tomorrow" }
+      ],
+      [
+        { text: "📋 Full Weekly Plan", callback_data: "all" },
+        { text: "📊 History & Stats", callback_data: "history" }
       ]
-    };
+    ];
+
+    if (enableReminders) {
+      rows.push([
+        { text: "🗳️ Dinner Vote", callback_data: "dinnerpoll" },
+        { text: "📢 Announcements", callback_data: "announcements" }
+      ]);
+    } else {
+      rows.push([
+        { text: "📢 Announcements", callback_data: "announcements" }
+      ]);
+    }
+
+    rows.push([
+      { text: "📑 Download PDF", callback_data: "download_pdf" },
+      { text: "⚡ Web Dashboard", url: "https://masterchefind-bot.onrender.com" }
+    ]);
+
+    if (enableReminders) {
+      rows.push([
+        { text: toggleLabel, callback_data: toggleAction },
+        { text: "⚙️ Notification Settings", callback_data: "settings" }
+      ]);
+    }
+
+    rows.push([
+      { text: "📱 Get Widget URL", callback_data: "widget_url" }
+    ]);
+
+    const keyboard = { inline_keyboard: rows };
 
     if (returnKeyboard) return keyboard;
 
-    bot.sendMessage(chatId, `🍽️ *Main Menu*\n\nChoose an option 👇\n_Or upload a new PDF menu to update it!_`, {
+    bot.sendMessage(chatId, `🍽️ *Main Menu*\n\nChoose an option 👇\n_Or upload a new PDF / Image menu to update it!_`, {
       parse_mode: "Markdown",
       reply_markup: keyboard
     });

@@ -13,6 +13,12 @@ const {
 } = require("./dinnerPoll");
 
 function initCron(bot) {
+  const enableReminders = process.env.ENABLE_REMINDERS === "true" || process.env.ENABLE_REMINDERS === "1";
+  if (!enableReminders) {
+    console.log("🔕 Daily reminders and dinner poll cron jobs are DISABLED via ENABLE_REMINDERS env flag.");
+    return;
+  }
+
   // ── Per-minute: personal meal reminders + dinner poll reminder ──
   cron.schedule("* * * * *", async () => {
     const now = new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata", hour12: false, hour: "2-digit", minute: "2-digit" });
@@ -101,7 +107,7 @@ function initCron(bot) {
     console.log(`📊 Dinner poll closed. Winner: ${winner} (${totalVotes} votes)`);
   }, { timezone: "Asia/Kolkata" });
 
-  console.log("⏰ Cron jobs initialized (meal reminders + dinner poll)");
+  console.log("⏰ Cron jobs initialized (meal reminders + dinner poll enabled)");
 }
 
 module.exports = { initCron };

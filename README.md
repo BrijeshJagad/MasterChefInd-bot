@@ -78,6 +78,7 @@ ADMIN_PASSWORD=your_secure_upload_password
 PORT=3000
 NEXT_PUBLIC_API_URL=https://masterchefind-bot.onrender.com
 GEMINI_API_KEY=your_google_gemini_api_key
+ENABLE_REMINDERS=true # Set to true to enable daily meal reminders and dinner voting poll
 ```
 
 ### 3. Local Development
