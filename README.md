@@ -19,14 +19,16 @@ A **production-grade canteen management ecosystem** featuring a high-fidelity we
 *   **Gemini AI Parsing**: Multimodal OCR via `@google/genai` (Gemini 2.5 Flash) converts messy, complex canteen PDFs and photo snapshots directly into structured weekly menu JSON.
 *   **Multi-Format Ingestion**: Upload menus via PDF, image file (PNG, JPG, WEBP), or direct mobile camera snapshots in Telegram and the Web Dashboard.
 *   **Heuristic Fallback Engine**: If no API key is provided or during network outages, the system automatically falls back to local coordinate-based `pdf2json` extraction.
+*   **Dinner Vote & Reminder Poll**: Automated 6:30 PM community dinner voting polls and 7:30 PM winner announcements (controlled via `ENABLE_REMINDERS` environment flag).
+*   **Personalized Routing**: Set precise individual timing configurations (HH:MM) to receive menu alerts dynamically.
 *   **Broadcast Ready**: Global Announcements system automatically pushes critical updates to registered users.
 *   **Admin Controls**: Securely upload and manage menus directly via Telegram or Web App with password verification.
-*   **Personalized Routing**: Set precise individual timing configurations (HH:MM) to receive menu alerts dynamically.
 
 ### 🛠️ Robust APIs & Integrations
 *   **Strict IST Enforcement**: Native Indian Standard Time (IST) offset computation ensures daily menu turnovers are pinpoint accurate regardless of server locale.
 *   **Next Meal Endpoint (`/api/next-meal`)**: Provides contextual real-time data indicating the upcoming menu item. Highly compatible with **iOS Shortcuts** and Siri ("Hey Siri, what's for dinner?").
 *   **Historical Data (`/api/all-weeks-data`)**: Open REST endpoint for retrieving all menu history instantly in lightweight JSON.
+*   **Cross-Origin Ready**: Built-in CORS middleware enabling seamless data access from native mobile apps and widgets.
 
 ### 🛡️ Hardened Backend
 *   **Unified Server**: Orchestrates Next.js, Express, and Telegram Polling in a single high-performance process.
@@ -37,13 +39,13 @@ A **production-grade canteen management ecosystem** featuring a high-fidelity we
 
 ### 🌐 Offline & Progressive Web App (PWA)
 *   **Dual-Layer Offline Caching**: Instantly loads cached menu records and available weeks from browser storage when disconnected or on unstable networks.
-*   **Service Worker Fallback**: Seamless asset caching (`sw.js`) and Web App Manifest (`manifest.json`) enabling one-click "Add to Home Screen" on Android, iOS, and Desktop Chrome/Edge.
+*   **Service Worker Fallback**: Seamless asset caching (`sw.js`) and Web App Manifest (`manifest.json`) enabling one-click "Add to Home Screen" on Android, iOS Safari, and Desktop Chrome/Edge.
 
 ### 📱 Multi-Platform & Native Packaging
-*   **Android App (APK)**: Capacitor-powered native Android shell.
-*   **iOS App**: Native Xcode project generated via Capacitor.
-*   **Windows Desktop App (`.exe`)**: Standalone Electron desktop executable with offline fallback.
-*   **CI/CD Automated Builds**: Pre-configured GitHub Actions workflow (`.github/workflows/build-apps.yml`) building APKs, `.exe`, and iOS archives on every push or workflow trigger.
+*   **Android App (`.apk`)**: Standalone Android application with native shell built via Capacitor.
+*   **iOS App (`.zip`)**: Native Xcode simulator build and project workspace.
+*   **Windows Desktop App (`.exe`)**: Standalone installer for Windows PCs powered by Electron.
+*   **CI/CD Automated Releases**: Pre-configured GitHub Actions workflow (`.github/workflows/build-apps.yml`) compiling and publishing versioned `.apk`, `.exe`, and `.zip` binaries on every push.
 
 ---
 
@@ -56,7 +58,7 @@ A **production-grade canteen management ecosystem** featuring a high-fidelity we
 *   **Backend**: Node.js, Express, Next.js Unified Routing
 *   **Bot**: `node-telegram-bot-api`
 *   **Database**: MongoDB (Mongoose)
-*   **Security**: Rate-Limiting, Helmet, JWT Authentication
+*   **Security**: Rate-Limiting, Helmet, JWT Authentication, CORS
 
 ---
 
@@ -94,7 +96,7 @@ npm run desktop
 
 ## 📦 Incremental Releases & Downloads
 
-Every push to `main` automatically builds and publishes an official **GitHub Release** with incremental version tags (`v1.{buildNumber}`):
+Every push to `main` automatically builds and publishes an official **GitHub Release** with incremental version tags (`v1.{buildNumber}`) and auto-generated release notes:
 
 ### Available Release Assets:
 * 🤖 **Android**: `masterchef-v1.{version}.apk` (Direct install on Android devices)
@@ -109,7 +111,7 @@ You can download the latest builds anytime directly from the **[Releases](https:
 
 ### Android (APK)
 ```bash
-# 1. Build frontend static files
+# 1. Build frontend static export
 npm run build
 
 # 2. Sync to Android and launch in Android Studio
@@ -121,16 +123,16 @@ npx cap open android
 
 ### Windows Desktop (`.exe`)
 ```bash
-# 1. Build frontend
+# 1. Build frontend static export
 npm run build
 
 # 2. Package into Windows Executable
-npx electron-builder --win --x64 -c.extraMetadata.main=electron/main.js -c.directories.output=dist-electron
+npx electron-builder --win --x64 --config electron-builder.json --publish never
 ```
 
 ### iOS (Xcode)
 ```bash
-# 1. Build frontend
+# 1. Build frontend static export
 npm run build
 
 # 2. Sync to iOS and launch Xcode (macOS required)
