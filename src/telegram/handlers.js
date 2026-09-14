@@ -24,24 +24,24 @@ function initHandlers() {
   const bot = getBot();
 
   // Set Bot Commands for the blue 'Menu' button
-  const enableReminders = process.env.ENABLE_REMINDERS === "true" || process.env.ENABLE_REMINDERS === "1";
+  const isDinnerPollEnabled = process.env.ENABLE_REMINDERS === "true" || process.env.ENABLE_REMINDERS === "1";
   const commands = [
     { command: 'today', description: "Today's delicious menu" },
     { command: 'tomorrow', description: "Check what's cooking tomorrow" },
-    { command: 'all', description: 'View full weekly plan' },
-    { command: 'announcements', description: 'Latest platform updates' }
+    { command: 'all', description: 'View full weekly plan' }
   ];
 
-  if (enableReminders) {
-    commands.push(
-      { command: 'dinnerpoll', description: 'Vote on tonight\'s dinner time' },
-      { command: 'settings', description: 'Configure notification times' },
-      { command: 'on', description: 'Enable daily reminders' },
-      { command: 'off', description: 'Privacy mode: Disable reminders' }
-    );
+  if (isDinnerPollEnabled) {
+    commands.push({ command: 'dinnerpoll', description: 'Vote on tonight\'s dinner time' });
   }
 
-  commands.push({ command: 'widget', description: 'Get your personalized API link' });
+  commands.push(
+    { command: 'announcements', description: 'Latest platform updates' },
+    { command: 'settings', description: 'Configure notification times' },
+    { command: 'on', description: 'Enable daily reminders' },
+    { command: 'off', description: 'Privacy mode: Disable reminders' },
+    { command: 'widget', description: 'Get your personalized API link' }
+  );
 
   bot.setMyCommands(commands).catch(err => console.error("Could not set bot commands:", err.message));
 
@@ -53,7 +53,7 @@ function initHandlers() {
 
   async function sendMainMenu(chatId, returnKeyboard = false) {
     const user = await User.findOne({ chatId }) || { reminders: true };
-    const enableReminders = process.env.ENABLE_REMINDERS === "true" || process.env.ENABLE_REMINDERS === "1";
+    const isDinnerPollEnabled = process.env.ENABLE_REMINDERS === "true" || process.env.ENABLE_REMINDERS === "1";
     const toggleLabel = user.reminders ? "🔕 Turn OFF Notifications" : "🔔 Turn ON Notifications";
     const toggleAction = user.reminders ? "off" : "on";
 
@@ -68,7 +68,7 @@ function initHandlers() {
       ]
     ];
 
-    if (enableReminders) {
+    if (isDinnerPollEnabled) {
       rows.push([
         { text: "🗳️ Dinner Vote", callback_data: "dinnerpoll" },
         { text: "📢 Announcements", callback_data: "announcements" }
@@ -84,12 +84,10 @@ function initHandlers() {
       { text: "⚡ Web Dashboard", url: "https://masterchefind-bot.onrender.com" }
     ]);
 
-    if (enableReminders) {
-      rows.push([
-        { text: toggleLabel, callback_data: toggleAction },
-        { text: "⚙️ Notification Settings", callback_data: "settings" }
-      ]);
-    }
+    rows.push([
+      { text: toggleLabel, callback_data: toggleAction },
+      { text: "⚙️ Notification Settings", callback_data: "settings" }
+    ]);
 
     rows.push([
       { text: "📱 Get Widget URL", callback_data: "widget_url" }
