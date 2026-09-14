@@ -1,8 +1,13 @@
-const PDFParser = require("pdf2json");
 const { getWeekKey } = require("./utils");
 
 function parseMenuFromPDF(filePath) {
   return new Promise((resolve, reject) => {
+    let PDFParser;
+    try {
+      PDFParser = require("pdf2json");
+    } catch (e) {
+      return reject(new Error("pdf2json is not installed: " + e.message));
+    }
     const pdfParser = new PDFParser();
 
     pdfParser.on("pdfParser_dataError", err => reject(err));
