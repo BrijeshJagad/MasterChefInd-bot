@@ -4,7 +4,7 @@
   "description": "",
   "scripts": {
     "dev": "node server.js",
-    "build": "node ./node_modules/next/dist/bin/next build frontend",
+    "build": "npx next build frontend",
     "start": "node server.js",
     "test": "jest",
     "desktop": "npx electron electron/main.js",

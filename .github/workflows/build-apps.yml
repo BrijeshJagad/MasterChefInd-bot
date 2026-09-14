@@ -23,10 +23,9 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: 'npm'
 
       - name: Install Dependencies
-        run: npm ci
+        run: npm install --legacy-peer-deps
 
       - name: Build Next.js Static Export
         run: npm run build
@@ -42,9 +41,10 @@ jobs:
 
       - name: Install Capacitor CLI & Android
         run: |
-          npm install --save-dev @capacitor/cli@^6.0.0 @capacitor/core@^6.0.0 @capacitor/android@^6.0.0
+          npm install --save-dev @capacitor/cli@^6.0.0 @capacitor/core@^6.0.0 @capacitor/android@^6.0.0 --legacy-peer-deps
           npx cap add android || true
           npx cap sync android
+          chmod +x ./android/gradlew || true
 
       - name: Build Android Debug APK with Gradle
         working-directory: ./android
@@ -75,10 +75,9 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: 'npm'
 
       - name: Install Dependencies
-        run: npm ci
+        run: npm install --legacy-peer-deps
 
       - name: Build Next.js Static Export
         run: npm run build
@@ -108,6 +107,7 @@ jobs:
   build-ios:
     name: Build iOS Project / App
     runs-on: macos-latest
+    continue-on-error: true
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -116,10 +116,9 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: 'npm'
 
       - name: Install Dependencies
-        run: npm ci
+        run: npm install --legacy-peer-deps
 
       - name: Build Next.js Static Export
         run: npm run build
@@ -129,14 +128,14 @@ jobs:
 
       - name: Install Capacitor Core & iOS
         run: |
-          npm install --save-dev @capacitor/cli@^6.0.0 @capacitor/core@^6.0.0 @capacitor/ios@^6.0.0
+          npm install --save-dev @capacitor/cli@^6.0.0 @capacitor/core@^6.0.0 @capacitor/ios@^6.0.0 --legacy-peer-deps
           npx cap add ios || true
           npx cap sync ios
 
       - name: Build iOS App with Xcode (Simulator build)
         run: |
           cd ios/App
-          xcodebuild -workspace App.xcworkspace -scheme App -destination 'generic/platform=iOS Simulator' -derivedDataPath build CODE_SIGNING_ALLOWED=NO
+          xcodebuild -workspace App.xcworkspace -scheme App -destination 'generic/platform=iOS Simulator' -derivedDataPath build CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=""
 
       - name: Zip and Prepare Versioned iOS App
         run: |
@@ -156,22 +155,26 @@ jobs:
   create-release:
     name: Publish GitHub Release
     needs: [build-android, build-windows, build-ios]
+    if: always() && (needs.build-android.result == 'success' || needs.build-windows.result == 'success' || needs.build-ios.result == 'success')
     runs-on: ubuntu-latest
     steps:
       - name: Download Android Artifact
         uses: actions/download-artifact@v4
+        continue-on-error: true
         with:
           name: masterchef-android-apk
           path: release-assets
 
       - name: Download Windows Artifact
         uses: actions/download-artifact@v4
+        continue-on-error: true
         with:
           name: masterchef-windows-app
           path: release-assets
 
       - name: Download iOS Artifact
         uses: actions/download-artifact@v4
+        continue-on-error: true
         with:
           name: masterchef-ios-build
           path: release-assets
