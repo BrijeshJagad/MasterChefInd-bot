@@ -16,7 +16,7 @@ A **production-grade canteen management ecosystem** featuring a high-fidelity we
 *   **One-Click Export**: Download any weekly menu as a professional PDF or raw JSON data.
 
 ### 🤖 Intelligent Telegram Bot & Gemini AI OCR
-*   **Gemini AI Parsing**: Multimodal OCR via `@google/genai` (Gemini 2.5 Flash) converts messy, complex canteen PDFs and photo snapshots directly into structured weekly menu JSON.
+*   **Gemini AI Parsing**: Multimodal OCR via `@google/genai` (Gemini 3.8 Flash & 3.7 Flash) converts messy, complex canteen PDFs and photo snapshots directly into structured weekly menu JSON.
 *   **Multi-Format Ingestion**: Upload menus via PDF, image file (PNG, JPG, WEBP), or direct mobile camera snapshots in Telegram and the Web Dashboard.
 *   **Heuristic Fallback Engine**: If no API key is provided or during network outages, the system automatically falls back to local coordinate-based `pdf2json` extraction.
 *   **Dinner Vote & Reminder Poll**: Automated 6:30 PM community dinner voting polls and 7:30 PM winner announcements (controlled via `ENABLE_REMINDERS` environment flag).

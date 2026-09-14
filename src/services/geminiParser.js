@@ -18,11 +18,12 @@ async function parseMenuWithGemini(fileBuffer, mimeType = "application/pdf", fil
   const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
 
   if (apiKey) {
-    // Models to try in priority order
+    // Models to try in priority order (Latest Gemini 3.8 / 3.7 Flash series first)
     const candidateModels = [
+      "gemini-3.8-flash",
+      "gemini-3.7-flash",
       "gemini-2.5-flash",
-      "gemini-1.5-flash",
-      "gemini-1.5-pro"
+      "gemini-1.5-flash"
     ];
 
     for (const modelName of candidateModels) {
