@@ -15,7 +15,6 @@ import DownloadIcon from '@mui/icons-material/DescriptionOutlined';
 import JsonIcon from '@mui/icons-material/DataObjectOutlined';
 import MenuIcon from '@mui/icons-material/Menu';
 import CloudUploadIcon from '@mui/icons-material/FileUploadOutlined';
-import UploadIcon from '@mui/icons-material/Upload';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
