@@ -35,7 +35,7 @@
     "node-cron": "^4.6.0",
     "node-telegram-bot-api": "^0.67.0",
     "openai": "^6.49.0",
-    "pdf-parse": "^1.1.4",
+    "pdf-parse": "^2.4.5",
     "pdf-table-extractor": "^1.0.3",
     "pdf2json": "^4.1.0",
     "pdfkit": "^0.18.0",
