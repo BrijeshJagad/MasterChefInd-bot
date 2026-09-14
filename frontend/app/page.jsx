@@ -645,19 +645,20 @@ function HomeContent() {
     </DialogContent>
   </Dialog>
 
-  {/* Upload PDF Modal */ }
+  {/* Upload PDF / Image Modal */ }
   <Dialog open={uploadModalOpen} onClose={() => setUploadModalOpen(false)} fullWidth maxWidth="sm" slotProps={{ paper: { sx: { bgcolor: '#FFFFFF', borderRadius: '24px', border: '1px solid #E2E8F0', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)' } } }}>
-    <DialogTitle sx={{ fontWeight: 900, fontSize: '1.5rem', p: 3 }}>Upload PDF Menu</DialogTitle>
+    <DialogTitle sx={{ fontWeight: 900, fontSize: '1.5rem', p: 3 }}>Upload Menu (PDF / Image)</DialogTitle>
     <DialogContent sx={{ p: 3, pt: 0 }}>
       <form onSubmit={handleUpload}>
         <Stack spacing={3} mt={1}>
           <Box onClick={() => document.getElementById('fileInput').click()} sx={{ border: '2px dashed var(--glass-border)', borderRadius: '16px', p: 4, cursor: 'pointer', textAlign: 'center', bgcolor: 'rgba(255, 255, 255, 0.02)', '&:hover': { borderColor: 'primary.main', bgcolor: 'rgba(59, 130, 246, 0.05)' } }}>
             <CloudUploadIcon sx={{ fontSize: 48, color: 'primary.main', mb: 1 }} />
-            <Typography variant="body1" fontWeight={700}>{file ? file.name : 'Click to select PDF'}</Typography>
-            <input id="fileInput" type="file" hidden accept="application/pdf" onChange={handleFileChange} />
+            <Typography variant="body1" fontWeight={700}>{file ? file.name : 'Click to select PDF or Menu Photo'}</Typography>
+            <Typography variant="caption" color="text.secondary">Powered by Gemini AI OCR & Smart Parser</Typography>
+            <input id="fileInput" type="file" hidden accept="application/pdf,image/png,image/jpeg,image/webp,image/jpg" onChange={handleFileChange} />
           </Box>
           <Button type="submit" variant="contained" disabled={uploadStatus === 'uploading' || !file} sx={{ py: 1.5, borderRadius: '12px', fontWeight: 800 }}>
-            {uploadStatus === 'uploading' ? 'Processing...' : 'Upload & Parse'}
+            {uploadStatus === 'uploading' ? 'Analyzing with Gemini AI...' : 'Upload & Parse Menu'}
           </Button>
           {uploadMessage && <Alert severity={uploadStatus === 'success' ? 'success' : 'error'} sx={{ borderRadius: '12px' }}>{uploadMessage}</Alert>}
         </Stack>

@@ -2,6 +2,7 @@ const multer = require("multer");
 const { getMenu, saveMenu, getAvailableWeeks } = require("../services/menu");
 const { getDay } = require("../services/utils");
 const { parseMenuFromPDF } = require("../services/parser");
+const { parseMenuWithGemini } = require("../services/geminiParser");
 const { User, Announcement } = require("../services/models");
 const fs = require("fs");
 const path = require("path");
@@ -218,33 +219,46 @@ function setupApiRoutes(app) {
     }
   });
 
-  // API: Upload Menu PDF
-  app.post("/api/upload", verifyJWT, upload.single("pdf"), async (req, res) => {
-    if (!req.file) {
-      return res.status(400).json({ error: "No file uploaded" });
+  // API: Upload Menu PDF or Image (with Gemini AI OCR & Parsing)
+  app.post("/api/upload", verifyJWT, (req, res, next) => {
+    upload.any()(req, res, (err) => {
+      if (err) return res.status(400).json({ error: "File upload error: " + err.message });
+      next();
+    });
+  }, async (req, res) => {
+    const uploadedFile = req.files && req.files.length > 0 ? req.files[0] : req.file;
+    if (!uploadedFile) {
+      return res.status(400).json({ error: "No file uploaded. Please select a PDF or image." });
     }
 
-    const tempPath = path.join(__dirname, `../../temp_${Date.now()}.pdf`);
+    const tempPath = path.join(__dirname, `../../temp_${Date.now()}_${uploadedFile.originalname || 'menu.pdf'}`);
     try {
-      fs.writeFileSync(tempPath, req.file.buffer);
+      fs.writeFileSync(tempPath, uploadedFile.buffer);
 
-      const { menu, weekKey } = await parseMenuFromPDF(tempPath);
+      const mimeType = uploadedFile.mimetype || (uploadedFile.originalname.endsWith(".pdf") ? "application/pdf" : "image/jpeg");
+      const { menu, weekKey } = await parseMenuWithGemini(uploadedFile.buffer, mimeType, tempPath);
+
+      if (!menu || Object.keys(menu).length === 0) {
+        throw new Error("Could not parse menu structure from the provided file.");
+      }
+
       await saveMenu(menu, {
-        buffer: req.file.buffer,
-        fileName: req.file.originalname,
-        contentType: req.file.mimetype
+        buffer: uploadedFile.buffer,
+        fileName: uploadedFile.originalname,
+        contentType: uploadedFile.mimetype
       }, weekKey);
 
       if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath);
       res.json({
         success: true,
         message: `Menu for Week ${weekKey} uploaded and parsed successfully!`,
-        weekKey
+        weekKey,
+        menu
       });
     } catch (err) {
       console.error("Upload error:", err);
       if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath);
-      res.status(500).json({ error: "Failed to process PDF: " + err.message });
+      res.status(500).json({ error: "Failed to process menu file: " + err.message });
     }
   });
 

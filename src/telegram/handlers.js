@@ -6,6 +6,7 @@ const { User, Menu, Announcement } = require("../services/models");
 const { getMenu, saveMenu, getAvailableWeeks } = require("../services/menu");
 const { getDay, formatMenu, formatFullMenu, getWeekKey, getISTDate } = require("../services/utils");
 const { parseMenuFromPDF } = require("../services/parser");
+const { parseMenuWithGemini } = require("../services/geminiParser");
 const {
   castVote,
   getTodayPoll,
@@ -96,7 +97,7 @@ function initHandlers() {
           const tempPath = path.join(__dirname, `../../temp_${chatId}.pdf`);
           fs.writeFileSync(tempPath, pending.buffer);
 
-          const { menu, weekKey } = await parseMenuFromPDF(tempPath);
+          const { menu, weekKey } = await parseMenuWithGemini(pending.buffer, pending.contentType || "application/pdf", tempPath);
           await saveMenu(menu, {
             buffer: pending.buffer,
             fileName: pending.fileName,
@@ -109,7 +110,7 @@ function initHandlers() {
           bot.sendMessage(chatId, `✅ *Menu Updated for Week ${weekKey}!*\n\n${formatFullMenu(menu)}`, { parse_mode: "Markdown", reply_markup: await sendMainMenu(chatId, true) });
         } catch (err) {
           console.error(err);
-          bot.sendMessage(chatId, `❌ Failed to parse PDF: ${err.message}`);
+          bot.sendMessage(chatId, `❌ Failed to parse menu: ${err.message}`);
           pendingUploads.delete(chatId);
         }
       } else {
@@ -342,11 +343,15 @@ function initHandlers() {
     }
   });
 
+  // Document Upload (PDF / Image documents)
   bot.on("document", async (msg) => {
     const chatId = msg.chat.id;
+    const fileName = msg.document.file_name || "";
+    const isPDF = fileName.toLowerCase().endsWith(".pdf");
+    const isImage = /\.(jpe?g|png|webp|heic)$/i.test(fileName) || (msg.document.mime_type && msg.document.mime_type.startsWith("image/"));
 
-    if (!msg.document.file_name.endsWith(".pdf")) {
-      return bot.sendMessage(chatId, "⚠️ Please upload a PDF file.");
+    if (!isPDF && !isImage) {
+      return bot.sendMessage(chatId, "⚠️ Please upload a PDF or image file (JPG, PNG).");
     }
 
     bot.sendMessage(chatId, "🛡️ *Security Check*: Please send the **Admin Password** to authorize this menu update.", { parse_mode: "Markdown" });
@@ -357,14 +362,47 @@ function initHandlers() {
 
       pendingUploads.set(chatId, {
         buffer: Buffer.from(res.data),
-        fileName: msg.document.file_name,
-        contentType: msg.document.mime_type,
+        fileName: msg.document.file_name || (isPDF ? "menu.pdf" : "menu.jpg"),
+        contentType: msg.document.mime_type || (isPDF ? "application/pdf" : "image/jpeg"),
         timestamp: Date.now()
       });
 
       // Cleanup pending after 2 minutes
       setTimeout(() => {
-        if (pendingUploads.has(chatId) && pendingUploads.get(chatId).timestamp === pendingUploads.get(chatId).timestamp) {
+        if (pendingUploads.has(chatId)) {
+          pendingUploads.delete(chatId);
+        }
+      }, 120000);
+
+    } catch (err) {
+      console.error(err);
+      bot.sendMessage(chatId, "❌ Internal error during security setup.");
+    }
+  });
+
+  // Photo Upload (Direct photo snaps / screenshots)
+  bot.on("photo", async (msg) => {
+    const chatId = msg.chat.id;
+    if (!msg.photo || msg.photo.length === 0) return;
+
+    // Grab the highest resolution photo version
+    const bestPhoto = msg.photo[msg.photo.length - 1];
+
+    bot.sendMessage(chatId, "🛡️ *Security Check*: Please send the **Admin Password** to authorize this menu update.", { parse_mode: "Markdown" });
+
+    try {
+      const fileUrl = await bot.getFileLink(bestPhoto.file_id);
+      const res = await axios.get(fileUrl, { responseType: "arraybuffer" });
+
+      pendingUploads.set(chatId, {
+        buffer: Buffer.from(res.data),
+        fileName: `menu_${Date.now()}.jpg`,
+        contentType: "image/jpeg",
+        timestamp: Date.now()
+      });
+
+      setTimeout(() => {
+        if (pendingUploads.has(chatId)) {
           pendingUploads.delete(chatId);
         }
       }, 120000);

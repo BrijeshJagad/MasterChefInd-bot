@@ -15,10 +15,12 @@ A **production-grade canteen management ecosystem** featuring a high-fidelity we
 *   **Admin Tools**: Full suite of live-edit controls, smart forms, and drag-and-drop PDF ingestion protected by JWT authentication.
 *   **One-Click Export**: Download any weekly menu as a professional PDF or raw JSON data.
 
-### 🤖 Intelligent Telegram Bot
-*   **Document Parsing**: Automatically extracts menu data from floating-coordinate PDFs.
+### 🤖 Intelligent Telegram Bot & Gemini AI OCR
+*   **Gemini AI Parsing**: Multimodal OCR via `@google/genai` (Gemini 2.5 Flash) converts messy, complex canteen PDFs and photo snapshots directly into structured weekly menu JSON.
+*   **Multi-Format Ingestion**: Upload menus via PDF, image file (PNG, JPG, WEBP), or direct mobile camera snapshots in Telegram and the Web Dashboard.
+*   **Heuristic Fallback Engine**: If no API key is provided or during network outages, the system automatically falls back to local coordinate-based `pdf2json` extraction.
 *   **Broadcast Ready**: Global Announcements system automatically pushes critical updates to registered users.
-*   **Admin Controls**: Securely upload and manage menus directly via Telegram.
+*   **Admin Controls**: Securely upload and manage menus directly via Telegram or Web App with password verification.
 *   **Personalized Routing**: Set precise individual timing configurations (HH:MM) to receive menu alerts dynamically.
 
 ### 🛠️ Robust APIs & Integrations
@@ -48,6 +50,7 @@ A **production-grade canteen management ecosystem** featuring a high-fidelity we
 ## 🛠️ Tech Stack
 
 *   **Frontend**: React 19, Next.js (App Router, Static Export), Material UI 6+, Glassmorphism UI
+*   **AI / Vision**: Google Gen AI SDK (`@google/genai`, Gemini 2.5 Flash)
 *   **Offline / PWA**: Service Worker API, LocalStorage Cache, Web App Manifest
 *   **Desktop & Mobile**: Electron, Capacitor (Android & iOS)
 *   **Backend**: Node.js, Express, Next.js Unified Routing
@@ -74,6 +77,7 @@ MONGO_URI=your_mongodb_connection_string
 ADMIN_PASSWORD=your_secure_upload_password
 PORT=3000
 NEXT_PUBLIC_API_URL=https://masterchefind-bot.onrender.com
+GEMINI_API_KEY=your_google_gemini_api_key
 ```
 
 ### 3. Local Development
