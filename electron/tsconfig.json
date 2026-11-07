@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "moduleResolution": "node",
+    "target": "ES2022",
+    "outDir": "./dist",
+    "rootDir": "./",
+    "types": ["node"],
+    "noEmit": false
+  },
+  "include": [
+    "main.ts",
+    "preload.ts",
+    "../types/electron.d.ts"
+  ]
+}

@@ -9,7 +9,7 @@
     "electron/**/*"
   ],
   "extraMetadata": {
-    "main": "electron/main.js"
+    "main": "electron/dist/main.js"
   },
   "win": {
     "target": "nsis"

@@ -28,20 +28,20 @@ This project adopts and adheres to the **BMAD Method** (Breakthrough Method for 
 ## 3. Tech Stack & Dependencies
 
 ### Frontend & UI
-- **Framework**: React 19.3+, Next.js 16.4+ (App Router, Static Export & Unified Server)
-- **UI Library**: Material UI (MUI) 6+ (`@mui/material`, `@mui/icons-material`, `@mui/material-nextjs`)
-- **Styling**: Emotion CSS (`@emotion/react`, `@emotion/styled`), Glassmorphism 3.0, CSS Variables
+- **Framework**: React 19.3+, Next.js 16.4+ (App Router, Static Export & Unified Server) in strict TypeScript/TSX
+- **UI Library**: Material UI (MUI) 9+ (`@mui/material`, `@mui/icons-material`, `@mui/material-nextjs`) benchmarked against Linear / Vercel design systems
+- **Styling**: Emotion CSS (`@emotion/react`, `@emotion/styled`), Clean Enterprise Surface Tokens, CSS Variables
 - **PWA / Offline**: Service Worker API (`sw.js`), LocalStorage Dual-Cache, Web App Manifest (`manifest.json`)
 
 ### Backend & Microservices
-- **Runtime**: Node.js (CommonJS & ES Module Interop)
-- **Web Framework**: Express 5.3+ unified with Next.js custom server
+- **Runtime**: Node.js 22+ (TypeScript, `tsx` runtime)
+- **Web Framework**: Express 5.3+ custom server (`server.ts`)
 - **Security Middleware**: `helmet` (HTTP headers), `express-rate-limit` (DDoS mitigation), `cors` (origin validation)
 - **Authentication**: JSON Web Tokens (`jsonwebtoken`), Node.js `crypto` with `scrypt` hashing (32-byte salt, constant-time `timingSafeEqual`)
 - **File Ingestion**: `multer` memory storage with 15MB upload boundary and path sanitization
 
 ### Telegram Bot
-- **Library**: `node-telegram-bot-api` v2.3.0 with modern adapter pattern & v0.67.0 fallback
+- **Library**: `node-telegram-bot-api` v2.3.0 with modern TypeScript adapter pattern
 - **Features**: Interactive inline keyboards, persistent slash commands, photo/document ingestion, callback query router
 
 ### AI & PDF Ingestion Pipeline
@@ -51,18 +51,18 @@ This project adopts and adheres to the **BMAD Method** (Breakthrough Method for 
 - **Heuristic Parser**: `pdf2json` coordinate grouping fallback
 
 ### Database & Scheduling
-- **Database**: MongoDB via `mongoose` 9.12+
+- **Database**: MongoDB via `mongoose` 9.12+ (strongly typed TypeScript schemas & models)
 - **Scheduler**: `node-cron` with strict `Asia/Kolkata` (IST) timezone bindings
 
 ### Telemetry & Observability
 - **Engine**: OpenTelemetry (OTLP JSON over HTTP) with local ring buffer fallback
 - **Metrics**: `prom-client` collecting Node.js runtime and HTTP latency histograms
-- **Logging**: Structured JSON logger (`src/services/logger.js`) with severity triage (`INFO`, `WARN`, `ERROR`)
+- **Logging**: Structured JSON logger (`src/services/logger.ts`) with severity triage (`INFO`, `WARN`, `ERROR`)
 
 ### Multi-Platform Packaging
-- **Desktop**: Electron 44+ (`electron/main.js`, `electron-builder.json`)
+- **Desktop**: Electron 44+ (`electron/main.ts`, `electron/preload.ts`, `electron-builder.json`)
 - **Mobile**: Capacitor 6+ (Android Studio Gradle build, iOS Xcode workspace)
-- **CI/CD**: GitHub Actions (`.github/workflows/build-apps.yml`)
+- **CI/CD**: GitHub Actions (`.github/workflows/build-apps.yml`) v2.0 release pipeline
 
 ---
 
@@ -85,49 +85,63 @@ bot/
 │   ├── parser-validation-report.md # Multi-engine OCR validation benchmarks
 │   └── product-brief.md        # Product vision, personas, and roadmap
 ├── electron/                   # Desktop wrapper
-│   └── main.js                 # Electron main process and window manager
+│   ├── dist/                   # Compiled Electron JavaScript outputs
+│   ├── main.ts                 # Electron main process and window manager
+│   ├── preload.ts              # Context-isolated IPC preload bridge
+│   └── tsconfig.json           # Dedicated Electron TypeScript compiler config
 ├── frontend/                   # Next.js 16 web application
-│   ├── app/                    # App Router (pages: /, /admin, /insights, /announcements)
-│   │   ├── admin/page.jsx      # Admin CMS with JWT authentication & live editor
-│   │   ├── insights/page.jsx   # Telemetry & System Insights dashboard
+│   ├── app/                    # App Router (pages: /, /insights, /announcements)
+│   │   ├── announcements/page.tsx # Announcements feed & broadcast sender
+│   │   ├── insights/page.tsx   # Telemetry & System Insights dashboard
 │   │   ├── components/         # Shared components (Sidebar, TopNav, Dialogs)
-│   │   ├── ThemeRegistry.jsx   # MUI theme & dark/light mode provider
-│   │   ├── globals.css         # Glassmorphism styling & animations
-│   │   └── layout.jsx          # Root layout
-│   └── next.config.js          # Next.js build configuration
+│   │   ├── ThemeRegistry.tsx   # Modernized MUI theme & dark/light mode provider
+│   │   ├── globals.css         # Modern typography & surface styling
+│   │   ├── layout.tsx          # Server Component root layout with metadata/viewport
+│   │   └── page.tsx            # Main weekly canteen dining schedule
+│   ├── next.config.js          # Next.js build configuration
+│   └── tsconfig.json           # Next.js frontend TypeScript compiler config
 ├── monitoring/                 # Monitoring & observability configurations
 │   ├── docker-compose.monitoring.yml # Prometheus & Grafana stack
 │   ├── OPENTELEMETRY_GUIDE.md  # OTLP streaming guide (Axiom & Grafana Cloud)
 │   └── prometheus.yml          # Prometheus scrape definitions
+├── scratch/                    # Scratch diagnostics and developer scripts
+│   └── check_db.ts             # Typed database probe utility
 ├── src/                        # Core backend services and bot
 │   ├── api/                    # Express REST API routes
-│   │   └── routes.js           # API route declarations & security middlewares
+│   │   └── routes.ts           # API route declarations & security middlewares
 │   ├── services/               # Microservices
-│   │   ├── cron.js             # node-cron scheduler (IST reminders & polls)
-│   │   ├── db.js               # MongoDB connection lifecycle
-│   │   ├── dinnerPoll.js       # 6:30 PM community dinner voting logic
-│   │   ├── geminiParser.js     # Triple-tier OCR parser (PDF.js -> Gemini -> Groq)
-│   │   ├── logger.js           # Structured JSON logger with telemetry hooks
-│   │   ├── menu.js             # Menu data access & week indexing logic
-│   │   ├── metrics.js          # Prometheus metrics & HTTP profiling
-│   │   ├── models.js           # Mongoose schemas (User, Menu, Announcement, DinnerPoll)
-│   │   ├── parser.js           # Coordinate heuristic fallback parser
-│   │   ├── pdfGenerator.js     # PDFKit weekly menu export synthesizer
-│   │   ├── telemetry.js        # OpenTelemetry OTLP dispatcher & in-memory buffer
-│   │   └── utils.js            # IST date arithmetic, week key calculation, formatters
+│   │   ├── cron.ts             # node-cron scheduler (IST reminders & polls)
+│   │   ├── db.ts               # MongoDB connection lifecycle
+│   │   ├── dinnerPoll.ts       # 6:30 PM community dinner voting logic
+│   │   ├── geminiParser.ts     # Triple-tier OCR parser (PDF.js -> Gemini -> Groq)
+│   │   ├── logger.ts           # Structured JSON logger with telemetry hooks
+│   │   ├── menu.ts             # Menu data access & week indexing logic
+│   │   ├── metrics.ts          # Prometheus metrics & HTTP profiling
+│   │   ├── models.ts           # Mongoose schemas (User, Menu, Announcement, DinnerPoll)
+│   │   ├── parser.ts           # Coordinate heuristic fallback parser
+│   │   ├── pdfGenerator.ts     # PDFKit weekly menu export synthesizer
+│   │   ├── telemetry.ts        # OpenTelemetry OTLP dispatcher & in-memory buffer
+│   │   └── utils.ts            # IST date arithmetic, week key calculation, formatters
 │   └── telegram/               # Telegram bot layer
-│       ├── bot.js              # Telegram instance initialization & adapter
-│       └── handlers.js         # Command handlers, callbacks, and photo uploads
+│       ├── bot.ts              # Telegram instance initialization & adapter
+│       └── handlers.ts         # Command handlers, callbacks, and photo uploads
 ├── tests/                      # Jest test suites
-│   ├── api.test.js             # REST API unit and integration tests
-│   ├── telemetry.test.js       # Telemetry logging & filtering tests
-│   └── utils.test.js           # IST date and menu utility tests
+│   ├── api.test.ts             # REST API unit and integration tests
+│   ├── telemetry.test.ts       # Telemetry logging & filtering tests
+│   └── utils.test.ts           # IST date and menu utility tests
+├── types/                      # Shared ambient TypeScript definitions
+│   ├── common.ts               # Shared models and data contracts
+│   ├── electron.d.ts           # Window.electronAPI type definitions
+│   └── express.d.ts            # Extended Express Request types
 ├── API_AND_SHORTCUT_GUIDE.md   # External API guide for iOS & Android shortcuts
 ├── CHANGELOG.md                # Release version history
-├── package.json                # Project dependencies and script runner
+├── jest.config.js              # Jest configuration (ts-jest preset)
+├── package.json                # Project dependencies and script runner (v2.0.0)
 ├── README.md                   # Primary project readme and onboarding guide
 ├── SECURITY.md                 # Security policy, reporting, and hardening details
-└── server.js                   # Unified Express + Next.js + Bot bootstrapping server
+├── server.ts                   # Unified Express + Next.js + Bot bootstrapping server
+├── tsconfig.base.json          # Shared compiler options
+└── tsconfig.json               # Root backend compiler configuration
 ```
 
 ---

@@ -101,3 +101,11 @@ yarn/install-state.gz
 pnp.*
 # Lockfiles
 package-lock.json
+
+
+# Electron build outputs
+electron/dist/
+dist-electron/
+
+# Agent workspaces
+.agents/

@@ -4,6 +4,49 @@ All notable changes to this project are documented in this file.
 
 ---
 
+## [v2.0.0] - 2026-11-07
+
+### ⚡ Repository-Wide TypeScript / TSX Migration
+- **100% Strict TypeScript**: Fully migrated all JavaScript (`.js` / `.jsx`) source code to strict TypeScript (`.ts` / `.tsx`) across backend, frontend, desktop, test suites, and utility scripts with 0 compiler errors.
+- **Backend & API Architecture**:
+  - Migrated `server.ts` custom Next.js + Express 5 bootstrap with typed OpenTelemetry and Prometheus instrumentation.
+  - Migrated `src/api/routes.ts` with strict Express Request/Response typing, JWT authentication middlewares, and standardized JSON envelopes.
+  - Migrated all `src/services/` modules: `db.ts`, `models.ts` (Mongoose 9 schemas), `logger.ts` (CommonJS interop ring-buffer), `telemetry.ts` (OTLP trace exporter), `metrics.ts` (Prometheus histograms), `menu.ts`, `cron.ts`, `dinnerPoll.ts`, `pdfGenerator.ts`, `parser.ts`, `geminiParser.ts` (dynamic PDF.js import & Gemini OCR types).
+  - Migrated `src/telegram/bot.ts` and `src/telegram/handlers.ts` with typed event listener maps and binary buffer upload session persistence.
+- **Frontend Next.js 16 App Router**:
+  - Migrated pure Server Component `frontend/app/layout.tsx` with typed Next.js `Metadata` and `Viewport` exports.
+  - Isolated client boundary `ServiceWorkerRegister.tsx` for progressive web app lifecycle management.
+  - Fully typed interactive pages and components: `page.tsx`, `Sidebar.tsx`, `ThemeRegistry.tsx`, `SuspenseBoundary.tsx`, `announcements/page.tsx`, and `insights/page.tsx`.
+- **Desktop Electron 44 Client**:
+  - Migrated `electron/main.ts` with packaging-aware path resolution (`app.getAppPath()` and `../../frontend/out`).
+  - Added type-safe IPC bridge `electron/preload.ts` with `contextBridge` exposing `window.electronAPI`.
+  - Configured dedicated `electron/tsconfig.json` compiling directly to `electron/dist/`.
+- **Test Infrastructure**:
+  - Migrated test suites (`tests/api.test.ts`, `tests/telemetry.test.ts`, `tests/utils.test.ts`) to `ts-jest` with 12/12 passing tests.
+  - Converted diagnostic tools (`scratch/check_db.ts`) with typed Mongoose `.lean()` queries.
+
+### 🎨 Enterprise Material UI (MUI) Design Modernization
+- **Linear / Vercel Benchmarked Aesthetics**: Completely overhauled the UI away from dated, high-saturation school-planner styling to sleek, enterprise SaaS design tokens.
+- **Typography Calibration**: Removed blanket `h1-h4 { font-weight: 800 !important; }` in `globals.css`; replaced with refined `Plus Jakarta Sans` / `Inter` scale with balanced tracking (`-0.025em`) and line heights.
+- **Surface & Elevation Hierarchy**: Multi-stop soft drop shadows (`0 4px 20px -2px rgba(15, 23, 42, 0.05)`) and smooth hover micro-interactions (`translateY(-2px)`).
+- **Meal Slot Modernization**:
+  - Replaced thick 4px solid colored side stripes with sleek, rounded meal slot containers (`borderRadius: 10px`).
+  - Replaced cartoon emoji headers with clean outlined Material icons and soft-tint micro-pill badges:
+    - Breakfast: Amber pill with `<WbSunnyOutlinedIcon />`.
+    - Lunch: Emerald pill with `<RestaurantMenuOutlinedIcon />`.
+    - Dinner: Indigo pill with `<NightlightOutlinedIcon />`.
+- **Brand Identity Preservation**: Strictly maintained core brand colors—Electric Indigo (`#4318FF`), Mint Emerald (`#05CD99`), and Dark Slate (`#0B1437`).
+
+### 🚀 CI/CD & Build Pipeline v2.0
+- **Version 2.0 GitHub Release Pipeline**:
+  - Upgraded `.github/workflows/build-apps.yml` to produce versioned v2 release assets: `masterchef-v2.<run>.apk`, `masterchef-v2.<run>.exe`, `masterchef-v2.<run>.zip`.
+  - Added automated `npm run build:electron` step to compile Electron TypeScript before packaging with `electron-builder`.
+  - Synchronized `electron-builder.json` entry point to `electron/dist/main.js`.
+- **Render Production Resilience**:
+  - Moved `tsx` to production `dependencies` in `package.json` ensuring seamless zero-downtime execution of `npm start` on cloud container platforms.
+
+---
+
 ## [v1.2.0] - 2026-11-07
 
 ### 🏛️ BMAD Method Framework Restoration
