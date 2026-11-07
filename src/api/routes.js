@@ -1,18 +1,25 @@
 const multer = require("multer");
+const crypto = require("crypto");
 const { getMenu, saveMenu, getAvailableWeeks } = require("../services/menu");
 const { getDay } = require("../services/utils");
 const { parseMenuFromPDF } = require("../services/parser");
 const { parseMenuWithGemini } = require("../services/geminiParser");
 const { User, Announcement, Menu } = require("../services/models");
 const mongoose = require("mongoose");
-const fs = require("fs");
 const path = require("path");
 const jwt = require("jsonwebtoken");
 const { getBot } = require("../telegram/bot");
 const logger = require("../services/logger");
 
-const JWT_SECRET = process.env.JWT_SECRET || 'masterchef-canteen-super-secret';
-const upload = multer({ storage: multer.memoryStorage() });
+// Cryptographically secure secret fallback if JWT_SECRET is unset in production
+const JWT_SECRET = process.env.JWT_SECRET || (process.env.NODE_ENV === "production"
+  ? crypto.randomBytes(32).toString("hex")
+  : "masterchef-canteen-super-secret");
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 15 * 1024 * 1024 } // 15MB max file size limit
+});
 
 // Middleware to verify JWT
 const verifyJWT = (req, res, next) => {
@@ -34,12 +41,25 @@ const verifyJWT = (req, res, next) => {
 function setupApiRoutes(app) {
   app.get("/api/health", (req, res) => res.send("OK"));
 
-  // API: Admin Authentication
+  // API: Admin Authentication (Constant-time timingSafeEqual validation)
   app.post("/api/auth/login", (req, res) => {
     const { password } = req.body || {};
-    if (!password || password !== process.env.ADMIN_PASSWORD) {
+    const adminPassword = process.env.ADMIN_PASSWORD;
+
+    if (!password || typeof password !== "string" || !adminPassword) {
       logger.warn("auth.login_failed", "Invalid admin password attempt", {
-        ip: req.ip || req.headers["x-forwarded-for"] || req.socket.remoteAddress
+        ip: req.ip || req.socket.remoteAddress
+      });
+      return res.status(401).json({ error: "Unauthorized: Invalid Admin Password" });
+    }
+
+    // SHA-256 hash both strings to ensure identical buffer lengths for timingSafeEqual
+    const inputHash = crypto.createHash("sha256").update(password).digest();
+    const expectedHash = crypto.createHash("sha256").update(adminPassword).digest();
+
+    if (!crypto.timingSafeEqual(inputHash, expectedHash)) {
+      logger.warn("auth.login_failed", "Invalid admin password attempt", {
+        ip: req.ip || req.socket.remoteAddress
       });
       return res.status(401).json({ error: "Unauthorized: Invalid Admin Password" });
     }
@@ -47,7 +67,7 @@ function setupApiRoutes(app) {
     // Sign JWT with 2 hour expiration
     const token = jwt.sign({ role: "admin" }, JWT_SECRET, { expiresIn: "2h" });
     logger.info("auth.login_success", "Admin authenticated successfully", {
-      ip: req.ip || req.headers["x-forwarded-for"] || req.socket.remoteAddress
+      ip: req.ip || req.socket.remoteAddress
     });
     res.json({ success: true, token });
   });
@@ -66,7 +86,8 @@ function setupApiRoutes(app) {
   app.get("/api/today", async (req, res) => {
     try {
       const { getWeekKey } = require("../services/utils");
-      const weekKey = req.query.week || getWeekKey();
+      const rawWeek = req.query.week;
+      const weekKey = typeof rawWeek === "string" && /^\d{4,8}$/.test(rawWeek) ? rawWeek : getWeekKey();
       const menuDoc = await getMenu(weekKey);
       if (!menuDoc || !menuDoc.data) return res.status(404).json({ error: "Menu not found for current week" });
 
@@ -92,7 +113,8 @@ function setupApiRoutes(app) {
   // API: Get Menu for a specific week
   app.get("/api/menu", async (req, res) => {
     try {
-      const weekKey = req.query.week || null;
+      const rawWeek = req.query.week;
+      const weekKey = typeof rawWeek === "string" && /^\d{4,8}$/.test(rawWeek) ? rawWeek : null;
       const menuDoc = await getMenu(weekKey);
       if (!menuDoc || !menuDoc.data) return res.status(404).json({ error: "Menu not found" });
       res.json({
@@ -112,7 +134,8 @@ function setupApiRoutes(app) {
       const { getDay, getWeekKey, getISTDate } = require("../services/utils");
       const { User } = require("../services/models");
 
-      const chatId = req.query.chatId;
+      const rawChatId = req.query.chatId;
+      const chatId = typeof rawChatId === "string" ? rawChatId : null;
 
       // Default static cutoffs
       let cutoffBreakfast = 9.5;  // 10:00 AM
@@ -121,7 +144,7 @@ function setupApiRoutes(app) {
 
       // If a chatId is provided, calculate cutoffs based on their custom notification timings
       if (chatId) {
-        const user = await User.findOne({ chatId });
+        const user = await User.findOne({ chatId: String(chatId) });
         if (user && user.timing) {
           const timeToFloat = (str) => {
             if (!str) return 0;
@@ -132,9 +155,6 @@ function setupApiRoutes(app) {
           const tLunch = timeToFloat(user.timing.lunch) || 11;
           const tDinner = timeToFloat(user.timing.dinner) || 20;
 
-          // Next meal becomes Lunch at the Lunch reminder time
-          // Next meal becomes Dinner at the Dinner reminder time
-          // Rollover to next day occurs 2.5 hours after Dinner reminder time
           cutoffBreakfast = tLunch;
           cutoffLunch = tDinner;
           cutoffRollover = tDinner + 2.5;
@@ -193,41 +213,45 @@ function setupApiRoutes(app) {
     }
   });
 
-  // API: Download PDF
+  // API: Download PDF (with Path & Header Injection protection)
   app.get("/api/download/pdf", async (req, res) => {
     try {
-      const weekKey = req.query.week || null;
+      const rawWeek = req.query.week;
+      const weekKey = typeof rawWeek === "string" && /^\d{4,8}$/.test(rawWeek) ? rawWeek : null;
       const menuDoc = await getMenu(weekKey);
       if (!menuDoc || !menuDoc.pdfBuffer) {
         return res.status(404).send("PDF not found.");
       }
 
+      const safeFileName = path.basename(menuDoc.fileName || 'menu.pdf').replace(/["\r\n\\]/g, '');
       res.setHeader("Content-Type", menuDoc.contentType || "application/pdf");
-      res.setHeader("Content-Disposition", `attachment; filename="${menuDoc.fileName || 'menu.pdf'}"`);
+      res.setHeader("Content-Disposition", `attachment; filename="${safeFileName}"`);
       res.send(menuDoc.pdfBuffer);
     } catch (err) {
       res.status(500).send("Error downloading PDF");
     }
   });
 
-  // API: Download JSON
+  // API: Download JSON (with Path & Header Injection protection)
   app.get("/api/download/json", async (req, res) => {
     try {
-      const weekKey = req.query.week || null;
+      const rawWeek = req.query.week;
+      const weekKey = typeof rawWeek === "string" && /^\d{4,8}$/.test(rawWeek) ? rawWeek : null;
       const menuDoc = await getMenu(weekKey);
       if (!menuDoc || !menuDoc.data) {
         return res.status(404).send("Menu data not found.");
       }
 
+      const safeWeek = String(menuDoc.weekKey || 'latest').replace(/[^a-zA-Z0-9_-]/g, '');
       res.setHeader("Content-Type", "application/json");
-      res.setHeader("Content-Disposition", `attachment; filename="menu_${menuDoc.weekKey}.json"`);
+      res.setHeader("Content-Disposition", `attachment; filename="menu_${safeWeek}.json"`);
       res.send(JSON.stringify(menuDoc.data, null, 2));
     } catch (err) {
       res.status(500).send("Error downloading JSON");
     }
   });
 
-  // API: Upload Menu PDF or Image (with Gemini AI OCR & Parsing)
+  // API: Upload Menu PDF or Image (Path Traversal protected)
   app.post("/api/upload", verifyJWT, (req, res, next) => {
     upload.any()(req, res, (err) => {
       if (err) return res.status(400).json({ error: "File upload error: " + err.message });
@@ -239,12 +263,10 @@ function setupApiRoutes(app) {
       return res.status(400).json({ error: "No file uploaded. Please select a PDF or image." });
     }
 
-    const tempPath = path.join(__dirname, `../../temp_${Date.now()}_${uploadedFile.originalname || 'menu.pdf'}`);
+    const safeBaseName = path.basename(uploadedFile.originalname || 'menu.pdf').replace(/[^a-zA-Z0-9._-]/g, '_');
     try {
-      fs.writeFileSync(tempPath, uploadedFile.buffer);
-
-      const mimeType = uploadedFile.mimetype || (uploadedFile.originalname.endsWith(".pdf") ? "application/pdf" : "image/jpeg");
-      const { menu, weekKey } = await parseMenuWithGemini(uploadedFile.buffer, mimeType, tempPath);
+      const mimeType = uploadedFile.mimetype || (safeBaseName.endsWith(".pdf") ? "application/pdf" : "image/jpeg");
+      const { menu, weekKey } = await parseMenuWithGemini(uploadedFile.buffer, mimeType);
 
       if (!menu || Object.keys(menu).length === 0) {
         throw new Error("Could not parse menu structure from the provided file.");
@@ -252,12 +274,11 @@ function setupApiRoutes(app) {
 
       await saveMenu(menu, {
         buffer: uploadedFile.buffer,
-        fileName: uploadedFile.originalname,
+        fileName: safeBaseName,
         contentType: uploadedFile.mimetype
       }, weekKey);
 
-      if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath);
-      logger.info("menu.uploaded", `Menu uploaded for Week ${weekKey}`, { weekKey, fileName: uploadedFile.originalname });
+      logger.info("menu.uploaded", `Menu uploaded for Week ${weekKey}`, { weekKey, fileName: safeBaseName });
       res.json({
         success: true,
         message: `Menu for Week ${weekKey} uploaded and parsed successfully!`,
@@ -265,10 +286,8 @@ function setupApiRoutes(app) {
         menu
       });
     } catch (err) {
-      console.error("Upload error:", err);
-      if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath);
-      logger.info("menu.uploaded", `Menu uploaded for Week ${weekKey}`, { weekKey, fileName: uploadedFile.originalname });
-      res.status(500).json({ error: "Failed to process menu file: " + err.message });
+      logger.error("menu.upload_error", `Menu upload failed: ${err.message}`, { error: err });
+      res.status(500).json({ error: "Failed to process menu file. Please ensure the file is a valid canteen menu." });
     }
   });
 
@@ -276,22 +295,23 @@ function setupApiRoutes(app) {
   app.post("/api/menu", verifyJWT, async (req, res) => {
     try {
       const { weekKey, menuData } = req.body;
-      if (!weekKey || !menuData) {
-        return res.status(400).json({ error: "Missing weekKey or menuData." });
+      if (!weekKey || !menuData || typeof weekKey !== "string") {
+        return res.status(400).json({ error: "Missing or invalid weekKey or menuData." });
       }
 
+      const safeWeekKey = weekKey.replace(/[^a-zA-Z0-9_-]/g, '');
       const { generateMenuPDF } = require("../services/pdfGenerator");
-      const pdfBuffer = await generateMenuPDF(menuData, weekKey);
+      const pdfBuffer = await generateMenuPDF(menuData, safeWeekKey);
 
       await saveMenu(menuData, {
         buffer: pdfBuffer,
-        fileName: `MasterChef_Menu_W${weekKey}.pdf`,
+        fileName: `MasterChef_Menu_W${safeWeekKey}.pdf`,
         contentType: 'application/pdf'
-      }, weekKey);
+      }, safeWeekKey);
 
-      res.json({ success: true, message: `Menu for Week ${weekKey} created and PDF synthesized successfully.` });
+      res.json({ success: true, message: `Menu for Week ${safeWeekKey} created and PDF synthesized successfully.` });
     } catch (err) {
-      console.error("Create error:", err);
+      logger.error("menu.create_error", `Failed to create menu: ${err.message}`, { error: err });
       res.status(500).json({ error: "Failed to create menu." });
     }
   });
@@ -299,14 +319,14 @@ function setupApiRoutes(app) {
   // API: Update Menu Data (JSON)
   app.put("/api/menu/:weekKey", verifyJWT, async (req, res) => {
     try {
-      const { weekKey } = req.params;
+      const rawWeek = req.params.weekKey;
+      const weekKey = typeof rawWeek === "string" ? rawWeek.replace(/[^a-zA-Z0-9_-]/g, '') : null;
       const { menuData } = req.body;
 
-      if (!menuData) {
-        return res.status(400).json({ error: "Missing menuData in request body." });
+      if (!weekKey || !menuData) {
+        return res.status(400).json({ error: "Missing or invalid weekKey or menuData." });
       }
 
-      // Generate a fresh PDF reflecting these edits
       const { generateMenuPDF } = require("../services/pdfGenerator");
       const pdfBuffer = await generateMenuPDF(menuData, weekKey);
 
@@ -318,7 +338,7 @@ function setupApiRoutes(app) {
 
       res.json({ success: true, message: `Menu for Week ${weekKey} updated and PDF regenerated successfully.` });
     } catch (err) {
-      console.error("Update error:", err);
+      logger.error("menu.update_error", `Failed to update menu: ${err.message}`, { error: err });
       res.status(500).json({ error: "Failed to update menu." });
     }
   });
@@ -326,13 +346,16 @@ function setupApiRoutes(app) {
   // API: Delete Menu
   app.delete("/api/menu/:weekKey", verifyJWT, async (req, res) => {
     try {
-      const { weekKey } = req.params;
+      const rawWeek = req.params.weekKey;
+      const weekKey = typeof rawWeek === "string" ? rawWeek.replace(/[^a-zA-Z0-9_-]/g, '') : null;
+      if (!weekKey) {
+        return res.status(400).json({ error: "Missing or invalid weekKey." });
+      }
       const { deleteMenu } = require("../services/menu");
-      console.log(`Deleting week: ${weekKey}`);
       await deleteMenu(weekKey);
       res.json({ success: true, message: `Week ${weekKey} deleted successfully.` });
     } catch (err) {
-      console.error("Delete error:", err);
+      logger.error("menu.delete_error", `Failed to delete menu: ${err.message}`, { error: err });
       res.status(500).json({ error: "Failed to delete menu." });
     }
   });
@@ -343,7 +366,6 @@ function setupApiRoutes(app) {
       const announcements = await Announcement.find({}).sort({ createdAt: -1 }).limit(50);
       res.json({ success: true, announcements });
     } catch (err) {
-      console.error("Get announcements error:", err);
       res.status(500).json({ error: "Failed to fetch announcements." });
     }
   });
@@ -352,15 +374,12 @@ function setupApiRoutes(app) {
   app.post("/api/announcements", verifyJWT, async (req, res) => {
     try {
       const { message } = req.body;
-      if (!message || message.trim() === "") {
+      if (!message || typeof message !== "string" || message.trim() === "") {
         return res.status(400).json({ error: "Announcement message cannot be empty." });
       }
 
-      // 1. Save to DB
       const announcement = await Announcement.create({ message: message.trim() });
-
-      // 2. Broadcast to Telegram Users
-      const users = await User.find({ reminders: true }); // Broadcasting to those with reminders on.
+      const users = await User.find({ reminders: true });
       const bot = getBot();
       let broadcastCount = 0;
 
@@ -371,7 +390,7 @@ function setupApiRoutes(app) {
           await bot.sendMessage(user.chatId, broadcastMsg, { parse_mode: "Markdown" });
           broadcastCount++;
         } catch (err) {
-          console.error(`Failed to broadcast to user ${user.chatId}:`, err.message);
+          logger.warn("telegram.broadcast_failed", `Failed to broadcast to user ${user.chatId}`, { error: err });
         }
       }
 
@@ -381,7 +400,7 @@ function setupApiRoutes(app) {
         announcement
       });
     } catch (err) {
-      console.error("Create announcement error:", err);
+      logger.error("announcement.create_error", `Failed to create announcement: ${err.message}`, { error: err });
       res.status(500).json({ error: "Failed to create announcement." });
     }
   });
@@ -422,7 +441,6 @@ function setupApiRoutes(app) {
         }
       });
     } catch (err) {
-      console.error("System stats error:", err);
       res.status(500).json({ error: "Failed to fetch system stats" });
     }
   });
@@ -431,11 +449,16 @@ function setupApiRoutes(app) {
   app.get("/api/system/logs", (req, res) => {
     try {
       const { getRecentLogs } = require("../services/telemetry");
+      const safeSeverity = typeof req.query.severity === "string" ? req.query.severity : undefined;
+      const safeAction = typeof req.query.action === "string" ? req.query.action : undefined;
+      const safeChatId = typeof req.query.chatId === "string" ? req.query.chatId : undefined;
+      const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 50, 1), 200);
+
       const logs = getRecentLogs({
-        severity: req.query.severity,
-        action: req.query.action,
-        chatId: req.query.chatId,
-        limit: req.query.limit || 50
+        severity: safeSeverity,
+        action: safeAction,
+        chatId: safeChatId,
+        limit
       });
       res.json({
         success: true,
@@ -443,7 +466,7 @@ function setupApiRoutes(app) {
         logs
       });
     } catch (err) {
-      res.status(500).json({ error: "Failed to retrieve telemetry logs: " + err.message });
+      res.status(500).json({ error: "Failed to retrieve telemetry logs" });
     }
   });
 

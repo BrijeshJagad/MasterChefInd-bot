@@ -2,6 +2,8 @@ const { GoogleGenAI } = require("@google/genai");
 const OpenAI = require("openai");
 const fs = require("fs");
 const path = require("path");
+const os = require("os");
+const crypto = require("crypto");
 
 let pdfjs = null;
 try {
@@ -18,26 +20,26 @@ const { getWeekKey } = require("./utils");
 const { parseMenuFromPDF } = require("./parser");
 const logger = require("./logger");
 
-// Prioritized Gemini AI models for OCR & Multimodal Parsing:
-// 1. Next-gen Gemini 3.x Flash and Pro models
-// 2. Production Gemini 2.5 Flash and Pro models
-// 3. Stable GA Gemini 2.0 Flash & Lite models
-// 4. Gemini 1.5 production fallback models
+// Prioritized Gemini AI models supporting multimodal OCR & JSON extraction on the Free Tier:
+// 1. gemini-2.5-flash: Latest premier production model (multimodal PDF/image, JSON mode, Free Tier)
+// 2. gemini-2.0-flash: Stable GA workhorse (multimodal PDF/image, 15 RPM / 1,500 RPD, Free Tier)
+// 3. gemini-2.0-flash-lite: Ultra-fast low latency multimodal model on Free Tier
+// 4. gemini-1.5-flash & gemini-1.5-flash-8b: Proven production multimodal models on Free Tier
+// 5. gemini-2.5-pro & gemini-1.5-pro: Deep reasoning multimodal models on Free Tier (lower RPM limits)
+// 6. Next-gen experimental/preview candidates
 const CANDIDATE_GEMINI_MODELS = [
-  "gemini-3.8-flash",
-  "gemini-3.7-flash",
-  "gemini-3.6-flash",
-  "gemini-3.1-pro-preview",
-  "gemini-3-pro-preview",
+  ...(process.env.GEMINI_MODEL ? [process.env.GEMINI_MODEL] : []),
   "gemini-2.5-flash",
-  "gemini-2.5-pro",
   "gemini-2.0-flash",
   "gemini-2.0-flash-lite",
-  "gemini-2.0-flash-exp",
   "gemini-1.5-flash",
+  "gemini-1.5-flash-8b",
   "gemini-1.5-flash-latest",
+  "gemini-2.5-pro",
   "gemini-1.5-pro",
-  "gemini-1.5-pro-latest"
+  "gemini-3.8-flash",
+  "gemini-3.7-flash",
+  "gemini-3.6-flash"
 ];
 
 // OpenAI Multimodal Models for Vision OCR fallback
@@ -352,7 +354,7 @@ async function parseWithPdfJs(fileBuffer) {
  * @param {string} [filePath] - Optional fallback local file path
  * @returns {Promise<{ menu: Object, weekKey: string }>}
  */
-async function parseMenuWithGemini(fileBuffer, mimeType = "application/pdf", filePath = null) {
+async function parseMenuWithGemini(fileBuffer, mimeType = "application/pdf") {
   const geminiApiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
 
   if (geminiApiKey) {
@@ -444,27 +446,23 @@ async function parseMenuWithGemini(fileBuffer, mimeType = "application/pdf", fil
     return pdfJsResult;
   }
 
-  // Fallback 2: Try legacy pdf2json parser
-  let localPdfPath = filePath;
-  let tempCreated = false;
-  if (!localPdfPath || !fs.existsSync(localPdfPath)) {
-    localPdfPath = path.join(__dirname, `../../temp_fallback_${Date.now()}.pdf`);
-    fs.writeFileSync(localPdfPath, fileBuffer);
-    tempCreated = true;
-  }
-
+  // Fallback 2: Try legacy pdf2json parser using a randomized isolated temp file
+  const safeTempFile = path.join(os.tmpdir(), `masterchef_${Date.now()}_${crypto.randomBytes(16).toString("hex")}.pdf`);
   try {
-    const result = await parseMenuFromPDF(localPdfPath);
-    if (tempCreated && fs.existsSync(localPdfPath)) fs.unlinkSync(localPdfPath);
+    fs.writeFileSync(safeTempFile, fileBuffer);
+    const result = await parseMenuFromPDF(safeTempFile);
     if (result && hasValidMealData(result.menu)) {
       console.log(`✅ Successfully extracted menu using pdf2json parser for Week ${result.weekKey}`);
       return result;
     }
   } catch (pdf2jsonErr) {
     console.warn("⚠️ pdf2json parser failed:", pdf2jsonErr.message || pdf2jsonErr.parserError);
-    if (tempCreated && fs.existsSync(localPdfPath)) {
-      try { fs.unlinkSync(localPdfPath); } catch (_) {}
-    }
+  } finally {
+    try {
+      if (fs.existsSync(safeTempFile)) {
+        fs.unlinkSync(safeTempFile);
+      }
+    } catch (_) {}
   }
 
   // If all strategies fail, throw error rather than returning empty dashes

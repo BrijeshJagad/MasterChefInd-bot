@@ -1,6 +1,5 @@
+const crypto = require("crypto");
 const axios = require("axios");
-const fs = require("fs");
-const path = require("path");
 const { getBot } = require("./bot");
 const { User, Menu, Announcement } = require("../services/models");
 const { getMenu, saveMenu, getAvailableWeeks } = require("../services/menu");
@@ -110,21 +109,24 @@ function initHandlers() {
     // Check if user is in "Waiting for Password" state
     if (pendingUploads.has(chatId)) {
       const pending = pendingUploads.get(chatId);
-      if (msg.text === process.env.ADMIN_PASSWORD) {
+      const adminPassword = process.env.ADMIN_PASSWORD;
+      const isAuthValid = typeof msg.text === "string" && adminPassword && (() => {
+        const inputHash = crypto.createHash("sha256").update(msg.text).digest();
+        const expectedHash = crypto.createHash("sha256").update(adminPassword).digest();
+        return crypto.timingSafeEqual(inputHash, expectedHash);
+      })();
+
+      if (isAuthValid) {
         bot.sendMessage(chatId, "🔐 *Password Correct!* Processing menu... ⏳", { parse_mode: "Markdown" });
 
         try {
-          const tempPath = path.join(__dirname, `../../temp_${chatId}.pdf`);
-          fs.writeFileSync(tempPath, pending.buffer);
-
-          const { menu, weekKey } = await parseMenuWithGemini(pending.buffer, pending.contentType || "application/pdf", tempPath);
+          const { menu, weekKey } = await parseMenuWithGemini(pending.buffer, pending.contentType || "application/pdf");
           await saveMenu(menu, {
             buffer: pending.buffer,
             fileName: pending.fileName,
             contentType: pending.contentType
           }, weekKey);
 
-          if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath);
           pendingUploads.delete(chatId);
 
           bot.sendMessage(chatId, `✅ *Menu Updated for Week ${weekKey}!*\n\n${formatFullMenu(menu)}`, { parse_mode: "Markdown", reply_markup: await sendMainMenu(chatId, true) });
