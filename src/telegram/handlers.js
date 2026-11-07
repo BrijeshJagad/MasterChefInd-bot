@@ -111,8 +111,8 @@ function initHandlers() {
       const pending = pendingUploads.get(chatId);
       const adminPassword = process.env.ADMIN_PASSWORD;
       const isAuthValid = typeof msg.text === "string" && adminPassword && (() => {
-        const inputHash = crypto.createHash("sha256").update(msg.text).digest();
-        const expectedHash = crypto.createHash("sha256").update(adminPassword).digest();
+        const inputHash = crypto.scryptSync(msg.text, "masterchef-auth-salt", 32);
+        const expectedHash = crypto.scryptSync(adminPassword, "masterchef-auth-salt", 32);
         return crypto.timingSafeEqual(inputHash, expectedHash);
       })();
 

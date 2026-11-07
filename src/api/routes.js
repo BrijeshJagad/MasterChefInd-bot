@@ -53,9 +53,9 @@ function setupApiRoutes(app) {
       return res.status(401).json({ error: "Unauthorized: Invalid Admin Password" });
     }
 
-    // SHA-256 hash both strings to ensure identical buffer lengths for timingSafeEqual
-    const inputHash = crypto.createHash("sha256").update(password).digest();
-    const expectedHash = crypto.createHash("sha256").update(adminPassword).digest();
+    // Cryptographically secure password verification using scrypt (CWE-916 compliant) and constant-time equality
+    const inputHash = crypto.scryptSync(password, "masterchef-auth-salt", 32);
+    const expectedHash = crypto.scryptSync(adminPassword, "masterchef-auth-salt", 32);
 
     if (!crypto.timingSafeEqual(inputHash, expectedHash)) {
       logger.warn("auth.login_failed", "Invalid admin password attempt", {
