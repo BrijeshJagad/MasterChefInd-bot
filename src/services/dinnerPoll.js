@@ -1,5 +1,6 @@
 const { DinnerPoll } = require("./models");
 const { getISTDate } = require("./utils");
+const logger = require("./logger");
 
 const DINNER_OPTIONS = ["19:00", "19:30", "20:00", "20:30", "21:00"];
 
@@ -45,11 +46,20 @@ async function getTodayPoll() {
 
 async function castVote(chatId, time) {
   const date = getTodayDateStr();
-  return DinnerPoll.findOneAndUpdate(
+  const updatedPoll = await DinnerPoll.findOneAndUpdate(
     { date, status: "open" },
     { $set: { [`votes.${chatId}`]: time } },
     { new: true }
   );
+
+  logger.info("dinner_poll.vote", `Vote recorded for ${chatId} -> ${time}`, {
+    action: "dinner_poll.vote",
+    chatId,
+    votedTime: time,
+    date
+  });
+
+  return updatedPoll;
 }
 
 async function storeMessageId(date, chatId, messageId) {
@@ -80,6 +90,15 @@ async function closePoll() {
 
   const totalVotes = Object.values(counts).reduce((a, b) => a + b, 0);
   await DinnerPoll.updateOne({ date }, { status: "closed", winningTime: winner });
+
+  logger.info("dinner_poll.closed", `Dinner poll closed for ${date}. Winning time: ${winner} with ${totalVotes} total votes`, {
+    action: "dinner_poll.closed",
+    date,
+    winner,
+    totalVotes,
+    counts
+  });
+
   return { winner, counts, totalVotes };
 }
 
