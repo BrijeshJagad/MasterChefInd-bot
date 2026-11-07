@@ -1,36 +1,84 @@
-# Apple Shortcuts Integration Guide 🍎
+# Apple Shortcuts & Siri Integration Guide 🍎
 
-Use the MasterChefInd Bot API to check today's menu directly from your iPhone Home Screen, Siri, or Apple Watch.
+Integrate MasterChef directly into iOS, iPadOS, watchOS, and macOS to query upcoming meals using Siri, interactive Lock Screen widgets, or Action Button triggers.
 
-## API Endpoint
-`GET https://[YOUR-BOT-URL]/api/today`
+---
 
-## Setup Guide
+## 1. Endpoints for iOS Shortcuts
 
-1.  **Open Shortcuts App**: Create a new shortcut.
-2.  **Add Action**: "Get Contents of URL".
-    -   Address: `https://[YOUR-BOT-URL]/api/today`
-3.  **Add Action**: "Get Dictionary from Input".
-4.  **Add Action**: "Get Value for `formatted` in Dictionary".
-5.  **Add Action**: "Show Result".
+### Option A: Next Upcoming Meal (Recommended)
+Automatically calculates whether you need Breakfast, Lunch, or Dinner based on current Indian Standard Time (IST):
+```
+GET https://[YOUR-BOT-URL]/api/next-meal
+```
 
-## Features
--   **Siri**: Say "Hey Siri, Today's Menu" to have the menu read or displayed.
--   **Widget**: Add the shortcut to your Home Screen widget for a one-tap menu check.
--   **Watch**: Run the shortcut from your Apple Watch.
-
-## Response Structure
-The API returns a JSON object:
+**JSON Response Schema**:
 ```json
 {
   "success": true,
-  "day": "MONDAY",
-  "date": "06-04",
-  "breakfast": "...",
-  "lunch": "...",
-  "dinner": "...",
-  "formatted": "..."
+  "day": "Wednesday",
+  "meal": "lunch",
+  "menu": "Paneer Butter Masala, Roti, Rice, Dal, Salad"
 }
 ```
-> [!TIP]
-> Use the `formatted` field for a quick summary, or parse the individual meal fields for a custom display!
+
+### Option B: Complete Today's Menu
+Fetches all meals for the day:
+```
+GET https://[YOUR-BOT-URL]/api/today
+```
+
+**JSON Response Schema**:
+```json
+{
+  "success": true,
+  "weekKey": "202619",
+  "day": "WEDNESDAY",
+  "date": "08/04",
+  "breakfast": "...",
+  "lunch": "...",
+  "dinner": "..."
+}
+```
+
+---
+
+## 2. Step-by-Step Setup in Apple Shortcuts
+
+### Building the "Next Meal" Shortcut
+
+1. **Open Shortcuts App**: Tap the **+** button in the top right to create a new shortcut.
+2. **Action 1 — Get URL**:
+   - Add action: **URL**
+   - Value: `https://your-bot-domain.com/api/next-meal` *(replace with your production URL)*.
+3. **Action 2 — Fetch JSON**:
+   - Add action: **Get Contents of URL**
+   - Method: `GET`
+4. **Action 3 — Extract Meal**:
+   - Add action: **Get Dictionary Value**
+   - Key: `meal`
+   - In: `Contents of URL`
+5. **Action 4 — Extract Menu Description**:
+   - Add action: **Get Dictionary Value**
+   - Key: `menu`
+   - In: `Contents of URL`
+6. **Action 5 — Display Alert**:
+   - Add action: **Show Result** (or **Show Notification**)
+   - Text:
+     ```
+     🍽️ Upcoming: [Dictionary Value (meal)]
+     
+     Menu:
+     [Dictionary Value (menu)]
+     ```
+7. **Name Your Shortcut**: Rename it to **"Canteen Menu"** or **"Next Meal"**.
+
+---
+
+## 3. Siri & Hands-Free Interaction
+
+Once named **"Canteen Menu"**:
+- **Siri Voice Command**: Say *"Hey Siri, Canteen Menu"*. Siri fetches the endpoint and reads your upcoming meal aloud.
+- **iPhone Action Button (iPhone 15 Pro & newer)**: In iOS Settings → Action Button → Shortcut → select **"Canteen Menu"** for instant 1-press menu preview.
+- **Apple Watch**: The shortcut appears automatically in the Apple Watch Shortcuts app and can be placed as a Smart Stack complication.
+- **Home Screen & Lock Screen Widget**: Add a 1x1 Shortcuts widget directly to your Home Screen or Lock Screen for instant one-tap access.

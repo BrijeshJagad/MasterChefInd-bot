@@ -1,64 +1,85 @@
-# 👨‍🍳 MasterChef Logistics Dashboard
+# 👨‍🍳 MasterChef Logistics & Canteen Management Ecosystem
 [![Maintenance](https://img.shields.io/badge/Maintained%3F-yes-green.svg)](https://github.com/BrijeshJagad/MasterChefInd-bot)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![BMAD Method](https://img.shields.io/badge/Framework-BMAD%20Method%20v6.3-blueviolet.svg)](docs/bmad-methodology.md)
+[![OpenTelemetry](https://img.shields.io/badge/Observability-OpenTelemetry-blue.svg)](monitoring/OPENTELEMETRY_GUIDE.md)
 
-A **production-grade canteen management ecosystem** featuring a high-fidelity web dashboard and an integrated Telegram bot. Built for scale, security, and a premium user experience.
+A **production-grade canteen management and dining logistics ecosystem** featuring a high-fidelity web dashboard, an integrated Telegram bot, multi-engine AI vision OCR, real-time OpenTelemetry observability, and native cross-platform mobile and desktop applications.
 
 ---
 
 ## 🚀 Key Features
 
-### 💎 Ultimate Dashboard V8.0
-*   **Modern Aesthetics**: Glassmorphism 3.0 icons, smooth transitions, and a curated deep-slate dark mode.
-*   **Fully Responsive**: PWA-ready layout that adapts perfectly from mobile devices to desktop monitors.
-*   **Interactive History**: Navigate through all historical menu data with a persistent sidebar.
-*   **Admin Tools**: Full suite of live-edit controls, smart forms, and drag-and-drop PDF ingestion protected by JWT authentication.
-*   **One-Click Export**: Download any weekly menu as a professional PDF or raw JSON data.
+### 💎 Ultimate Dashboard V8.0 & System Insights
+*   **Modern Aesthetics**: Glassmorphism 3.0 icons, smooth transitions, and a curated deep-slate dark/light mode.
+*   **System Insights Explorer (`/insights`)**: Real-time telemetry monitoring dashboard displaying live process memory gauges (RSS, Heap, External), CPU metrics, uptime, user counts, and queryable event streams.
+*   **Interactive Menu History**: Retroactively browse and view all historical weekly menus via a persistent sidebar drawer indexed by ISO calendar weeks (`YYYYWW`).
+*   **Admin Management Suite**: Full management portal (`/admin`) protected by Scrypt password hashing and JWT authorization for live menu edits, weekly creations, announcements, and JSON import/export.
+*   **One-Click PDF & JSON Exports**: Download any weekly menu as a synthesized PDF poster (generated via PDFKit) or lightweight JSON data.
 
-### 🤖 Intelligent Telegram Bot & Gemini AI OCR
-*   **Gemini AI Parsing**: Multimodal OCR via `@google/genai` (Gemini 3.8 Flash & 3.7 Flash) converts messy, complex canteen PDFs and photo snapshots directly into structured weekly menu JSON.
-*   **Multi-Format Ingestion**: Upload menus via PDF, image file (PNG, JPG, WEBP), or direct mobile camera snapshots in Telegram and the Web Dashboard.
-*   **Heuristic Fallback Engine**: If no API key is provided or during network outages, the system automatically falls back to local coordinate-based `pdf2json` extraction.
-*   **Dinner Vote & Reminder Poll**: Automated 6:30 PM community dinner voting polls and 7:30 PM winner announcements (controlled via `ENABLE_REMINDERS` environment flag).
-*   **Personalized Routing**: Set precise individual timing configurations (HH:MM) to receive menu alerts dynamically.
-*   **Broadcast Ready**: Global Announcements system automatically pushes critical updates to registered users.
-*   **Admin Controls**: Securely upload and manage menus directly via Telegram or Web App with password verification.
+### 🤖 Intelligent Telegram Bot (v2.3 Modern Adapter)
+*   **Modern Architecture**: Powered by `node-telegram-bot-api` v2.3.0 with a custom modern adapter pattern and legacy fallback.
+*   **Instant Meal Ingestion**: Upload canteen menus directly in Telegram as PDF documents, photo snapshots (PNG, JPEG, WEBP), or camera images.
+*   **Automated Dinner Voting Poll**: Automated 6:30 PM IST daily community dinner voting polls and 7:30 PM winner announcements (toggled via `ENABLE_REMINDERS`).
+*   **Granular Reminders**: Automated daily alerts for Breakfast (07:30), Lunch (11:00), and Dinner (20:00) in Indian Standard Time (IST) with customizable individual reminder timings (`/timing`).
+*   **Community Broadcasts**: Admin announcements pushed instantly to all registered users.
 
-### 🛠️ Robust APIs & Integrations
-*   **Strict IST Enforcement**: Native Indian Standard Time (IST) offset computation ensures daily menu turnovers are pinpoint accurate regardless of server locale.
-*   **Next Meal Endpoint (`/api/next-meal`)**: Provides contextual real-time data indicating the upcoming menu item. Highly compatible with **iOS Shortcuts** and Siri ("Hey Siri, what's for dinner?").
-*   **Historical Data (`/api/all-weeks-data`)**: Open REST endpoint for retrieving all menu history instantly in lightweight JSON.
-*   **Cross-Origin Ready**: Built-in CORS middleware enabling seamless data access from native mobile apps and widgets.
+### 👁️ Resilient Triple-Tier OCR Engine
+*   **Tier 1 — Instant Local PDF.js**: Coordinate-based cell extraction using Mozilla `pdfjs-dist` (<50ms, 0 API tokens consumed, 100% offline, immune to corrupt XRef stream headers and CVE-2024-4367).
+*   **Tier 2 — Google Gemini Multimodal AI**: Uses `@google/genai` (Gemini 2.5 Flash, 2.0 Flash, 2.0 Flash Lite, 1.5 Flash) with strict JSON schema enforcement to parse complex scanned schedules and mobile photos.
+*   **Tier 3 — Groq LPU Vision Fallback**: Ultra-low latency fallback using Groq's LPU (`llama-3.2-11b-vision-preview`) when external rate limits or network issues occur.
+*   **Tier 4 — Heuristic Parser**: Coordinate grouping fallback via `pdf2json`.
 
-### 🛡️ Hardened Backend
-*   **Unified Server**: Orchestrates Next.js, Express, and Telegram Polling in a single high-performance process.
-*   **Security First**: Integrated with `helmet` for headers, `express-rate-limit` for API protection, and password-validated admin routes.
-*   **Weekly Indexing**: Robust `YYYYWW` indexing system ensures bulletproof data retrieval without cross-week bleeding.
+### 🛡️ Hardened Security Architecture
+*   **Scrypt Key Derivation**: Admin password authentication uses Node.js `crypto.scryptSync` with unique salts.
+*   **Constant-Time Verification**: Compares password hashes using `crypto.timingSafeEqual` to eliminate side-channel timing attacks.
+*   **NoSQL Injection Mitigation**: All week queries and user identifiers are strictly validated against regex filters (`/^\d{4,8}$/`).
+*   **Defense-in-Depth**: Integrated with `helmet` for HTTP headers, `express-rate-limit` for DDoS protection, and path sanitization.
+
+### 🔭 OpenTelemetry & Production Observability
+*   **OTLP JSON Streaming**: Streams structured events (`http.request`, `telegram.message`, `dinner_poll.vote`, `menu.uploaded`, `gemini.ocr_success`) directly to free backends such as **Axiom** or **Grafana Cloud**.
+*   **In-Memory Ring Buffer**: Maintains recent logs locally for immediate querying inside the `/insights` page.
+
+### 🌐 Offline & Progressive Web App (PWA)
+*   **Dual-Layer Caching**: Instant offline menu browsing backed by Service Workers (`sw.js`) and LocalStorage.
+*   **Installable**: One-click "Add to Home Screen" on Android, iOS Safari, and Desktop Chrome/Edge.
+
+### 📱 Multi-Platform Native Packaging
+*   **Android App (`.apk`)**: Standalone Android application built via Capacitor.
+*   **Windows Desktop (`.exe`)**: Desktop installer powered by Electron.
+*   **iOS App (`.zip`)**: Native Xcode workspace and simulator package.
+*   **Automated Releases**: GitHub Actions workflow (`.github/workflows/build-apps.yml`) compiling and releasing artifacts on every release.
 
 ---
 
-### 🌐 Offline & Progressive Web App (PWA)
-*   **Dual-Layer Offline Caching**: Instantly loads cached menu records and available weeks from browser storage when disconnected or on unstable networks.
-*   **Service Worker Fallback**: Seamless asset caching (`sw.js`) and Web App Manifest (`manifest.json`) enabling one-click "Add to Home Screen" on Android, iOS Safari, and Desktop Chrome/Edge.
+## 🏛️ The BMAD Method Integration
 
-### 📱 Multi-Platform & Native Packaging
-*   **Android App (`.apk`)**: Standalone Android application with native shell built via Capacitor.
-*   **iOS App (`.zip`)**: Native Xcode simulator build and project workspace.
-*   **Windows Desktop App (`.exe`)**: Standalone installer for Windows PCs powered by Electron.
-*   **CI/CD Automated Releases**: Pre-configured GitHub Actions workflow (`.github/workflows/build-apps.yml`) compiling and publishing versioned `.apk`, `.exe`, and `.zip` binaries on every push.
+This repository is built and maintained following the **BMAD Method** (Breakthrough Method for Agile AI Development).
+
+```
+_bmad/
+├── _config/                # Manifests (agents, skills, files, and manifest.yaml)
+├── bmm/                    # Breakthrough Method Module configuration & help
+└── core/                   # BMAD Core engine parameters
+_bmad-output/
+├── planning-artifacts/     # Product briefs, solution designs, epics & stories
+└── implementation-artifacts/ # Sprint status tracking and checkpoint logs
+```
+
+For detailed documentation on the BMAD methodology, agent profiles, and sprint workflows, see [BMAD Methodology Guide](docs/bmad-methodology.md).
 
 ---
 
 ## 🛠️ Tech Stack
 
-*   **Frontend**: React 19, Next.js (App Router, Static Export), Material UI 6+, Glassmorphism UI
-*   **AI / Vision**: Google Gen AI SDK (`@google/genai`, Gemini 2.5 Flash)
-*   **Offline / PWA**: Service Worker API, LocalStorage Cache, Web App Manifest
-*   **Desktop & Mobile**: Electron, Capacitor (Android & iOS)
-*   **Backend**: Node.js, Express, Next.js Unified Routing
-*   **Bot**: `node-telegram-bot-api`
-*   **Database**: MongoDB (Mongoose)
-*   **Security**: Rate-Limiting, Helmet, JWT Authentication, CORS
+*   **Frontend**: React 19.3, Next.js 16.4 (App Router), Material UI 6+, Emotion, Glassmorphism 3.0
+*   **Backend**: Node.js, Express 5.3, Next.js Custom Server
+*   **Bot**: `node-telegram-bot-api` v2.3.0
+*   **Vision & OCR**: Google Gen AI SDK (`@google/genai`), Groq Vision API, Mozilla PDF.js (`pdfjs-dist`), PDFKit
+*   **Database**: MongoDB Atlas via `mongoose` 9.12+
+*   **Observability**: OpenTelemetry (OTLP), Prometheus (`prom-client`), Custom Structured Logger
+*   **Packaging**: Electron 44+, Capacitor 6+ (Android & iOS)
+*   **Framework**: BMAD Method v6.3.0
 
 ---
 
@@ -71,22 +92,30 @@ cd MasterChefInd-bot
 npm install
 ```
 
-### 2. Configuration
+### 2. Environment Configuration
 Create a `.env` file in the root directory:
 ```env
 BOT_TOKEN=your_telegram_bot_token
 MONGO_URI=your_mongodb_connection_string
-ADMIN_PASSWORD=your_secure_upload_password
+ADMIN_PASSWORD=your_secure_admin_password
 PORT=3000
 NEXT_PUBLIC_API_URL=https://masterchefind-bot.onrender.com
 GEMINI_API_KEY=your_google_gemini_api_key
-ENABLE_REMINDERS=true # Set to true to enable daily Dinner Voting poll & winner announcements
+GROQ_API_KEY=your_optional_groq_api_key
+ENABLE_REMINDERS=true
+
+# Optional: OpenTelemetry Streaming (e.g. Axiom or Grafana Cloud)
+OTEL_EXPORTER_OTLP_ENDPOINT=https://api.axiom.co/v1/logs
+OTEL_EXPORTER_OTLP_HEADERS=Authorization=Bearer YOUR_AXIOM_TOKEN,X-Axiom-Dataset=masterchef
 ```
 
-### 3. Local Development
+### 3. Local Execution
 ```bash
-# Start unified full-stack server
+# Start unified full-stack server (Next.js + Express + Telegram Polling)
 npm run dev
+
+# Run test suites
+npm test
 
 # Run standalone Electron Desktop app
 npm run desktop
@@ -94,28 +123,31 @@ npm run desktop
 
 ---
 
-## 📦 Incremental Releases & Downloads
+## 📖 REST API Overview
 
-Every push to `main` automatically builds and publishes an official **GitHub Release** with incremental version tags (`v1.{buildNumber}`) and auto-generated release notes:
+| Endpoint | Method | Description |
+| :--- | :--- | :--- |
+| `/api/health` | `GET` | Health check probe. |
+| `/api/today` | `GET` | Today's menu in IST. |
+| `/api/menu` | `GET` | Full menu breakdown for a specific week (`?week=YYYYWW`). |
+| `/api/next-meal` | `GET` | Upcoming meal based on current IST time (iOS Shortcuts / Siri ready). |
+| `/api/all-weeks-data`| `GET` | Historical JSON of all weekly menus. |
+| `/api/download/pdf` | `GET` | Download menu PDF poster. |
+| `/api/download/json`| `GET` | Export raw weekly JSON. |
+| `/api/upload` | `POST` | Upload and parse new menu PDF or image *(Admin JWT required)*. |
+| `/api/announcements`| `GET/POST`| Fetch or broadcast community announcements *(Admin JWT required for POST)*. |
+| `/api/system/stats` | `GET` | Live process memory, CPU, and database stats. |
+| `/api/system/logs` | `GET` | Query recent telemetry and action events. |
 
-### Available Release Assets:
-* 🤖 **Android**: `masterchef-v1.{version}.apk` (Direct install on Android devices)
-* 🪟 **Windows**: `masterchef-v1.{version}.exe` (Standalone Windows executable)
-* 🍎 **iOS**: `masterchef-v1.{version}.zip` (iOS application package)
-
-You can download the latest builds anytime directly from the **[Releases](https://github.com/BrijeshJagad/MasterChefInd-bot/releases)** tab on the repository page!
+For complete request schemas, response formats, and curl snippets, refer to the [REST API Reference](docs/api-reference.md).
 
 ---
 
-## 📲 Local Build Instructions
+## 📲 Platform Build Instructions
 
-### Android (APK)
+### Android (`.apk`)
 ```bash
-# 1. Build frontend static export
 npm run build
-
-# 2. Sync to Android and launch in Android Studio
-npm install --save-dev @capacitor/cli @capacitor/core @capacitor/android
 npx cap add android
 npx cap sync android
 npx cap open android
@@ -123,24 +155,31 @@ npx cap open android
 
 ### Windows Desktop (`.exe`)
 ```bash
-# 1. Build frontend static export
 npm run build
-
-# 2. Package into Windows Executable
 npx electron-builder --win --x64 --config electron-builder.json --publish never
 ```
 
 ### iOS (Xcode)
 ```bash
-# 1. Build frontend static export
 npm run build
-
-# 2. Sync to iOS and launch Xcode (macOS required)
-npm install --save-dev @capacitor/cli @capacitor/core @capacitor/ios
 npx cap add ios
 npx cap sync ios
 npx cap open ios
 ```
+
+---
+
+## 📚 Documentation Index
+
+- 📘 [Project Context & Rules](project-context.md)
+- 🏛️ [BMAD Methodology Guide](docs/bmad-methodology.md)
+- 📐 [System Architecture Blueprint](docs/architecture.md)
+- 📑 [REST API Reference](docs/api-reference.md)
+- 🍎 [Apple Shortcuts & Siri Guide](docs/apple-shortcuts.md)
+- 📊 [Multi-Engine Parser Validation Report](docs/parser-validation-report.md)
+- 🔭 [OpenTelemetry Logging Guide](monitoring/OPENTELEMETRY_GUIDE.md)
+- 🛡️ [Security Policy & Vulnerability Reporting](SECURITY.md)
+- 📜 [Changelog](CHANGELOG.md)
 
 ---
 

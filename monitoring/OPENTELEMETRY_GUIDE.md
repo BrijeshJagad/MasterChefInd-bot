@@ -24,6 +24,16 @@ Every event is recorded with rich, queryable metadata:
 
 ---
 
+## 🖥️ In-App System Insights UI (`/insights`)
+
+A visual telemetry explorer is built directly into the MasterChef web dashboard:
+- Navigate to **System Insights** in the dashboard sidebar or visit `http://localhost:3000/insights`.
+- **Live Hardware Gauges**: Visual RSS Memory, Heap Allocation, Uptime, Node version, and platform details.
+- **Interactive Event Stream**: Real-time tabular audit logs filterable by severity (`INFO`, `WARN`, `ERROR`), action name, or Telegram `chatId`.
+- **System Counters**: Active subscriber counts, reminder counts, and total registered weekly menus.
+
+---
+
 ## 🚀 Recommended Free Backends
 
 ### 🥇 Option 1: Axiom (Recommended — 500 GB / month Free, 30 Days Retention)
@@ -119,7 +129,7 @@ http://localhost:3001
 
 ---
 
-## 🔍 In-App Querying (No external setup required)
+## 🔍 In-App Querying & REST APIs (No external setup required)
 
 Even before connecting an external OTLP backend, you can query recent actions and system resource stats directly via REST:
 
