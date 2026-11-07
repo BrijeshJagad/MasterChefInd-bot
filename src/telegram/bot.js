@@ -14,50 +14,56 @@ class ModernTelegramBot {
     };
     this._textHandlers = [];
 
-    // Global middleware bridging updates
+    // Global middleware bridging updates to legacy handlers
     this.rawBot.use(async (ctx, next) => {
-      // 1. Message updates
-      if (ctx.message) {
-        const msg = ctx.message;
-        
-        // Execute regex onText handlers first
-        if (msg.text) {
-          for (const { regex, handler } of this._textHandlers) {
-            const match = msg.text.match(regex);
-            if (match) {
-              try {
-                await handler(msg, match);
-              } catch (err) {
-                console.error("Error in onText handler:", err);
+      try {
+        // 1. Message updates
+        if (ctx.message) {
+          const msg = ctx.message;
+          
+          // Execute regex onText handlers first
+          if (msg.text) {
+            for (const { regex, handler } of this._textHandlers) {
+              const match = msg.text.match(regex);
+              if (match) {
+                try {
+                  await handler(msg, match);
+                } catch (err) {
+                  console.error("Error in onText handler:", err.message);
+                }
               }
             }
           }
-        }
 
-        // Specific media listeners
-        if (msg.document) {
-          for (const fn of this._listeners.document) {
-            try { await fn(msg); } catch (err) { console.error("Error in document listener:", err); }
+          // Document handlers
+          if (msg.document) {
+            for (const fn of this._listeners.document) {
+              try { await fn(msg); } catch (err) { console.error("Error in document listener:", err.message); }
+            }
+          }
+
+          // Photo handlers
+          if (msg.photo) {
+            for (const fn of this._listeners.photo) {
+              try { await fn(msg); } catch (err) { console.error("Error in photo listener:", err.message); }
+            }
+          }
+
+          // General message listeners
+          for (const fn of this._listeners.message) {
+            try { await fn(msg); } catch (err) { console.error("Error in message listener:", err.message); }
           }
         }
-        if (msg.photo) {
-          for (const fn of this._listeners.photo) {
-            try { await fn(msg); } catch (err) { console.error("Error in photo listener:", err); }
+
+        // 2. Callback query updates
+        if (ctx.callbackQuery) {
+          const query = ctx.callbackQuery;
+          for (const fn of this._listeners.callback_query) {
+            try { await fn(query); } catch (err) { console.error("Error in callback_query listener:", err.message); }
           }
         }
-
-        // General message listeners
-        for (const fn of this._listeners.message) {
-          try { await fn(msg); } catch (err) { console.error("Error in message listener:", err); }
-        }
-      }
-
-      // 2. Callback queries
-      if (ctx.callbackQuery) {
-        const query = ctx.callbackQuery;
-        for (const fn of this._listeners.callback_query) {
-          try { await fn(query); } catch (err) { console.error("Error in callback_query listener:", err); }
-        }
+      } catch (middlewareErr) {
+        console.error("Error processing Telegram update in middleware:", middlewareErr);
       }
 
       await next();
@@ -77,11 +83,26 @@ class ModernTelegramBot {
   }
 
   async sendMessage(chatId, text, options = {}) {
-    return this.api.sendMessage({
-      chat_id: chatId,
-      text: String(text),
-      ...options
-    });
+    try {
+      return await this.api.sendMessage({
+        chat_id: chatId,
+        text: String(text),
+        ...options
+      });
+    } catch (err) {
+      // If Telegram rejects markdown formatting entities, auto-fallback to plain text
+      const desc = err.description || err.message || "";
+      if (options.parse_mode && desc.toLowerCase().includes("entities")) {
+        const fallbackOptions = { ...options };
+        delete fallbackOptions.parse_mode;
+        return await this.api.sendMessage({
+          chat_id: chatId,
+          text: String(text),
+          ...fallbackOptions
+        });
+      }
+      throw err;
+    }
   }
 
   async sendPhoto(chatId, photo, options = {}) {
@@ -101,24 +122,49 @@ class ModernTelegramBot {
   }
 
   async answerCallbackQuery(callbackQueryId, options = {}) {
-    return this.api.answerCallbackQuery({
-      callback_query_id: callbackQueryId,
-      ...options
-    });
+    try {
+      return await this.api.answerCallbackQuery({
+        callback_query_id: String(callbackQueryId),
+        ...options
+      });
+    } catch (err) {
+      // Non-fatal if query is too old
+      return null;
+    }
   }
 
   async editMessageText(text, options = {}) {
-    return this.api.editMessageText({
-      text: String(text),
-      ...options
-    });
+    try {
+      return await this.api.editMessageText({
+        text: String(text),
+        ...options
+      });
+    } catch (err) {
+      const desc = err.description || err.message || "";
+      if (desc.includes("message is not modified")) return null;
+      if (options.parse_mode && desc.toLowerCase().includes("entities")) {
+        const fallbackOptions = { ...options };
+        delete fallbackOptions.parse_mode;
+        return await this.api.editMessageText({
+          text: String(text),
+          ...fallbackOptions
+        });
+      }
+      throw err;
+    }
   }
 
   async editMessageReplyMarkup(replyMarkup, options = {}) {
-    return this.api.editMessageReplyMarkup({
-      reply_markup: replyMarkup,
-      ...options
-    });
+    try {
+      return await this.api.editMessageReplyMarkup({
+        reply_markup: replyMarkup,
+        ...options
+      });
+    } catch (err) {
+      const desc = err.description || err.message || "";
+      if (desc.includes("message is not modified")) return null;
+      throw err;
+    }
   }
 
   async setMyCommands(commands, options = {}) {
@@ -157,30 +203,24 @@ function getBot() {
 
 async function startBotPolling() {
   const bot = getBot();
-  try {
-    const token = process.env.BOT_TOKEN;
-    if (!token || token.includes("your_telegram")) {
-      console.error("❌ Invalid BOT_TOKEN. Please check your .env file.");
-      return;
-    }
-
-    console.log("🧹 Cleaning old Telegram sessions (HTTP)...");
-    try {
-      await axios.get(`https://api.telegram.org/bot${token}/deleteWebhook`);
-      await axios.get(`https://api.telegram.org/bot${token}/getUpdates`, { params: { offset: -1 } });
-    } catch (apiErr) {
-      console.log("ℹ️ Webhook/Updates cleanup (normal if already clean):", apiErr.message);
-    }
-    
-    // Launch polling in background so promise resolves and server startup proceeds
-    bot.startPolling().catch(err => {
-      console.error("❌ Telegram Polling runtime error:", err.message);
-    });
-    console.log("✅ Polling started safely with node-telegram-bot-api v2.3.0");
-  } catch (err) {
-    const detail = err.response?.data?.description || err.message;
-    console.error("❌ Telegram Startup error:", detail);
+  const token = process.env.BOT_TOKEN;
+  if (!token || token.includes("your_telegram")) {
+    console.error("❌ Invalid BOT_TOKEN. Please check your .env file.");
+    return;
   }
+
+  // Ensure webhook is removed fast (non-blocking with 3s timeout)
+  try {
+    await axios.get(`https://api.telegram.org/bot${token}/deleteWebhook`, { timeout: 3000 });
+  } catch (apiErr) {
+    // Ignore timeout / non-fatal
+  }
+  
+  // Start polling in background
+  bot.startPolling().catch(err => {
+    console.error("❌ Telegram Polling error:", err.message);
+  });
+  console.log("✅ Telegram Bot polling running (v2.3.0)");
 }
 
 module.exports = { getBot, startBotPolling, ModernTelegramBot };

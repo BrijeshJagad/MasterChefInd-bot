@@ -161,8 +161,9 @@ nextApp.prepare().then(async () => {
     logger.info("system.ready", `Server running successfully on http://localhost:${PORT}`, { port: PORT });
     
     // Start Telegram Bot
+    initHandlers();
     startBotPolling().then(() => {
-      initHandlers();
+
       setBotStatus(true);
       logger.info("telegram.bot_ready", "Telegram bot polling active and handlers initialized");
       
