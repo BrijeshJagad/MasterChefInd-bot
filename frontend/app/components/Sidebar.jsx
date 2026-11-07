@@ -118,7 +118,7 @@ export default function Sidebar({ weeks, selectedWeek, onSelectWeek, mobileOpen,
           <Button
             fullWidth
             size="small"
-            target="_blank"
+            target="_blank" rel="noopener noreferrer"
               href="https://t.me/MasterChefInd_bot"
               startIcon={<TelegramIcon sx={{ fontSize: '1rem' }} />}
               sx={{
@@ -181,7 +181,7 @@ export default function Sidebar({ weeks, selectedWeek, onSelectWeek, mobileOpen,
           <Stack direction="row" spacing={1} sx={{ justifyContent: 'space-evenly' }}>
             <Button
               href="https://in.linkedin.com/in/brijesh-jagad"
-              target="_blank"
+              target="_blank" rel="noopener noreferrer"
               size="small"
               startIcon={<LinkedInIcon sx={{ fontSize: '1.1rem' }} />}
               sx={{
@@ -199,7 +199,7 @@ export default function Sidebar({ weeks, selectedWeek, onSelectWeek, mobileOpen,
             </Button>
             <Button
               href="https://github.com/BrijeshJagad/MasterChefInd-bot"
-              target="_blank"
+              target="_blank" rel="noopener noreferrer"
               size="small"
               startIcon={<GitHubIcon sx={{ fontSize: '1.1rem' }} />}
               sx={{
