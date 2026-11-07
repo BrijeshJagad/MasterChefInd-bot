@@ -143,7 +143,9 @@ class OtlpTelemetry {
     } catch (err) {
       // Don't crash on network or collector hiccups; log warning once
       if (!this._warnedOnce) {
-        console.warn(`⚠️ Failed to export OTLP logs to ${this.endpoint}:`, err.message);
+        const status = err.response ? err.response.status : "ERR";
+        const detail = err.response?.data ? JSON.stringify(err.response.data) : err.message;
+        console.warn(`⚠️ Failed to export OTLP logs to ${this.endpoint} [${status}]:`, detail);
         this._warnedOnce = true;
       }
     } finally {
