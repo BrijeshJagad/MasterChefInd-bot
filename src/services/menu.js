@@ -3,30 +3,34 @@ const { getWeekKey } = require("./utils");
 
 async function saveMenu(menu, pdfData = null, customWeekKey = null) {
   const safeWeekKey = typeof customWeekKey === "string" ? customWeekKey : getWeekKey();
-  const update = { data: menu, weekKey: safeWeekKey };
+  const setData = {
+    data: menu,
+    weekKey: String(safeWeekKey)
+  };
   if (pdfData) {
-    update.pdfBuffer = pdfData.buffer;
-    update.fileName = pdfData.fileName;
-    update.contentType = pdfData.contentType;
+    if (pdfData.buffer) setData.pdfBuffer = pdfData.buffer;
+    if (pdfData.fileName) setData.fileName = String(pdfData.fileName);
+    if (pdfData.contentType) setData.contentType = String(pdfData.contentType);
   }
   
   await Menu.findOneAndUpdate(
     { weekKey: { $eq: String(safeWeekKey) } },
-    update,
+    { $set: setData },
     { upsert: true }
   );
   return safeWeekKey;
 }
 
 async function getMenu(weekKey = null) {
-  const safeKey = typeof weekKey === "string" && weekKey.trim() !== "" ? weekKey.trim() : null;
-  const query = safeKey ? { weekKey: { $eq: safeKey } } : {};
-  return await Menu.findOne(query).sort({ weekKey: -1 });
+  if (typeof weekKey === "string" && weekKey.trim() !== "") {
+    return await Menu.findOne({ weekKey: { $eq: weekKey.trim() } });
+  }
+  return await Menu.findOne({}).sort({ weekKey: -1 });
 }
 
 async function deleteMenu(weekKey) {
   if (!weekKey || typeof weekKey !== "string") throw new Error("A valid string weekKey is required for deletion");
-  return await Menu.findOneAndDelete({ weekKey: { $eq: weekKey } });
+  return await Menu.findOneAndDelete({ weekKey: { $eq: String(weekKey) } });
 }
 
 async function getAvailableWeeks() {
