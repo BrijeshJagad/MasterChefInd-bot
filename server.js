@@ -45,10 +45,28 @@ nextApp.prepare().then(async () => {
   // Initialize Express server
   const server = express();
   
-  // Security headers
-  server.use(helmet({
-    contentSecurityPolicy: false,
-  }));
+  // Security headers with comprehensive Content Security Policy (CSP)
+  server.use(
+    helmet({
+      contentSecurityPolicy: {
+        useDefaults: true,
+        directives: {
+          defaultSrc: ["'self'"],
+          scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+          styleSrc: ["'self'", "'unsafe-inline'"],
+          imgSrc: ["'self'", "data:", "blob:", "https:"],
+          fontSrc: ["'self'", "data:", "https:"],
+          connectSrc: ["'self'", "https:", "wss:"],
+          objectSrc: ["'none'"],
+          baseUri: ["'self'"],
+          formAction: ["'self'"],
+          frameAncestors: ["'self'"]
+        }
+      },
+      crossOriginEmbedderPolicy: false,
+      referrerPolicy: { policy: "strict-origin-when-cross-origin" }
+    })
+  );
 
   // CORS Middleware for Mobile (Capacitor/Cordova) & Cross-Origin Desktop Apps
   server.use((req, res, next) => {
