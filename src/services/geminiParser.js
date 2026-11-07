@@ -5,14 +5,19 @@ const path = require("path");
 const os = require("os");
 const crypto = require("crypto");
 
-let pdfjs = null;
-try {
-  pdfjs = require("pdfjs-dist/legacy/build/pdf.js");
-} catch (e1) {
+let pdfjsInstance = null;
+async function getPdfJs() {
+  if (pdfjsInstance) return pdfjsInstance;
   try {
-    pdfjs = require("pdfjs-dist");
-  } catch (e2) {
-    pdfjs = null;
+    pdfjsInstance = await import("pdfjs-dist/legacy/build/pdf.mjs");
+    return pdfjsInstance;
+  } catch (e1) {
+    try {
+      pdfjsInstance = require("pdfjs-dist");
+      return pdfjsInstance;
+    } catch (e2) {
+      return null;
+    }
   }
 }
 
@@ -232,13 +237,14 @@ async function parseMenuWithOpenAI(fileBuffer, mimeType = "image/jpeg") {
  * Immune to XRef stream errors that crash legacy parsers like pdf2json.
  */
 async function parseWithPdfJs(fileBuffer) {
-  if (!pdfjs) {
+  const pdfLib = await getPdfJs();
+  if (!pdfLib) {
     console.warn("⚠️ pdfjs-dist is not installed, skipping pdfjs extraction.");
     return null;
   }
   try {
     const data = new Uint8Array(fileBuffer);
-    const loadingTask = pdfjs.getDocument({ data, useSystemFonts: true, disableFontFace: true });
+    const loadingTask = pdfLib.getDocument({ data, isEvalSupported: false, useSystemFonts: true, disableFontFace: true });
     const doc = await loadingTask.promise;
 
     let allItems = [];
