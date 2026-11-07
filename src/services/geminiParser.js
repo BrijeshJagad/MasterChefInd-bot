@@ -47,6 +47,13 @@ const CANDIDATE_GEMINI_MODELS = [
   "gemini-3.6-flash"
 ];
 
+// High-speed Groq LPU Vision Models (Free Tier, ultra-low latency ~1s)
+const CANDIDATE_GROQ_MODELS = [
+  "llama-3.2-11b-vision-preview",
+  "llama-3.2-90b-vision-preview",
+  "qwen/qwen3.8-27b"
+];
+
 // OpenAI Multimodal Models for Vision OCR fallback
 const CANDIDATE_OPENAI_MODELS = [
   "gpt-4o",
@@ -233,6 +240,68 @@ async function parseMenuWithOpenAI(fileBuffer, mimeType = "image/jpeg") {
 }
 
 /**
+ * Ultra-fast Multimodal vision extraction via Groq (Free Tier, LPU accelerated, <1.5s latency)
+ */
+async function parseMenuWithGroq(fileBuffer, mimeType = "image/jpeg") {
+  const apiKey = process.env.GROQ_API_KEY;
+  if (!apiKey) return null;
+
+  const isImage = mimeType && mimeType.startsWith("image/");
+  if (!isImage) return null;
+
+  const groq = new OpenAI({
+    apiKey,
+    baseURL: "https://api.groq.com/openai/v1"
+  });
+
+  const base64Data = fileBuffer.toString("base64");
+  const dataUrl = `data:${mimeType};base64,${base64Data}`;
+
+  for (const modelName of CANDIDATE_GROQ_MODELS) {
+    try {
+      console.log(`⚡ Attempting ultra-fast menu extraction with Groq (${modelName})...`);
+      const response = await groq.chat.completions.create({
+        model: modelName,
+        messages: [
+          {
+            role: "user",
+            content: [
+              { type: "text", text: MENU_EXTRACTION_PROMPT },
+              { type: "image_url", image_url: { url: dataUrl } }
+            ]
+          }
+        ],
+        response_format: { type: "json_object" }
+      });
+
+      const responseText = response.choices?.[0]?.message?.content || "";
+      const cleaned = responseText.replace(/```json/gi, "").replace(/```/g, "").trim();
+      const parsed = JSON.parse(cleaned);
+
+      if (parsed && parsed.menu && hasValidMealData(parsed.menu)) {
+        let finalWeekKey = parsed.weekKey;
+        if (!finalWeekKey || !/^\d{6}$/.test(String(finalWeekKey))) {
+          finalWeekKey = getWeekKey();
+        }
+        logger.info("groq.ocr_success", `Extracted menu for Week ${finalWeekKey} using Groq ${modelName}`, {
+          action: "groq.ocr_success",
+          model: modelName,
+          weekKey: String(finalWeekKey)
+        });
+        return {
+          menu: parsed.menu,
+          weekKey: String(finalWeekKey)
+        };
+      }
+    } catch (err) {
+      console.warn(`⚠️ Groq model (${modelName}) error:`, err.message);
+    }
+  }
+
+  return null;
+}
+
+/**
  * Extracts weekly menu from PDF using pdfjs-dist coordinate analysis.
  * Immune to XRef stream errors that crash legacy parsers like pdf2json.
  */
@@ -361,6 +430,30 @@ async function parseWithPdfJs(fileBuffer) {
  * @returns {Promise<{ menu: Object, weekKey: string }>}
  */
 async function parseMenuWithGemini(fileBuffer, mimeType = "application/pdf") {
+  // Strategy 1: Instant Local Parser for PDFs (0s Latency, 100% Free & Offline)
+  if (!mimeType || mimeType === "application/pdf") {
+    console.log("⚡ Checking local coordinate parser first for instant PDF extraction...");
+    try {
+      const pdfJsResult = await parseWithPdfJs(fileBuffer);
+      if (pdfJsResult && hasValidMealData(pdfJsResult.menu)) {
+        console.log(`✅ Instant local extraction succeeded for Week ${pdfJsResult.weekKey} (<100ms)!`);
+        return pdfJsResult;
+      }
+    } catch (e) {
+      console.warn("Local PDF parser skipped:", e.message);
+    }
+  }
+
+  // Strategy 2: Ultra-Fast Groq LPU Vision (<1.5s, Free Tier)
+  if (process.env.GROQ_API_KEY && mimeType && mimeType.startsWith("image/")) {
+    const groqResult = await parseMenuWithGroq(fileBuffer, mimeType);
+    if (groqResult && hasValidMealData(groqResult.menu)) {
+      console.log(`✅ Groq ultra-fast extraction succeeded for Week ${groqResult.weekKey}`);
+      return groqResult;
+    }
+  }
+
+  // Strategy 3: Google Gemini API (Multimodal Free Tier)
   const geminiApiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
 
   if (geminiApiKey) {
@@ -435,7 +528,7 @@ async function parseMenuWithGemini(fileBuffer, mimeType = "application/pdf") {
     console.log("ℹ️ No GEMINI_API_KEY detected, checking alternative AI models or built-in fallback parser.");
   }
 
-  // AI Fallback: Try OpenAI Vision if OPENAI_API_KEY is configured
+  // Strategy 4: OpenAI Vision if configured
   if (process.env.OPENAI_API_KEY && mimeType && mimeType.startsWith("image/")) {
     const openAiResult = await parseMenuWithOpenAI(fileBuffer, mimeType);
     if (openAiResult && hasValidMealData(openAiResult.menu)) {
@@ -444,15 +537,17 @@ async function parseMenuWithGemini(fileBuffer, mimeType = "application/pdf") {
     }
   }
 
-  // Fallback 1: High-precision coordinate & text parser via pdfjs-dist
-  console.log("📄 Attempting local pdfjs-dist extraction...");
-  const pdfJsResult = await parseWithPdfJs(fileBuffer);
-  if (pdfJsResult && hasValidMealData(pdfJsResult.menu)) {
-    console.log(`✅ Successfully extracted menu using local pdfjs parser for Week ${pdfJsResult.weekKey}`);
-    return pdfJsResult;
+  // Strategy 5: Secondary check on local pdfjs parser (if not attempted earlier)
+  if (mimeType && mimeType.startsWith("application/pdf")) {
+    console.log("📄 Attempting local pdfjs-dist extraction...");
+    const pdfJsResult = await parseWithPdfJs(fileBuffer);
+    if (pdfJsResult && hasValidMealData(pdfJsResult.menu)) {
+      console.log(`✅ Successfully extracted menu using local pdfjs parser for Week ${pdfJsResult.weekKey}`);
+      return pdfJsResult;
+    }
   }
 
-  // Fallback 2: Try legacy pdf2json parser using a randomized isolated temp file
+  // Strategy 6: Legacy pdf2json parser using a randomized isolated temp file
   const safeTempFile = path.join(os.tmpdir(), `masterchef_${Date.now()}_${crypto.randomBytes(16).toString("hex")}.pdf`);
   try {
     fs.writeFileSync(safeTempFile, fileBuffer);
@@ -475,4 +570,4 @@ async function parseMenuWithGemini(fileBuffer, mimeType = "application/pdf") {
   throw new Error("Could not extract meal items from the document. Please ensure the file is a clear, valid weekly canteen menu (PDF or image).");
 }
 
-module.exports = { parseMenuWithGemini, parseMenuWithOpenAI, parseWithPdfJs, CANDIDATE_GEMINI_MODELS, CANDIDATE_OPENAI_MODELS };
+module.exports = { parseMenuWithGemini, parseMenuWithGroq, parseMenuWithOpenAI, parseWithPdfJs, CANDIDATE_GEMINI_MODELS, CANDIDATE_GROQ_MODELS, CANDIDATE_OPENAI_MODELS };
