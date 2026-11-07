@@ -3,11 +3,13 @@ const { getMenu, saveMenu, getAvailableWeeks } = require("../services/menu");
 const { getDay } = require("../services/utils");
 const { parseMenuFromPDF } = require("../services/parser");
 const { parseMenuWithGemini } = require("../services/geminiParser");
-const { User, Announcement } = require("../services/models");
+const { User, Announcement, Menu } = require("../services/models");
+const mongoose = require("mongoose");
 const fs = require("fs");
 const path = require("path");
 const jwt = require("jsonwebtoken");
 const { getBot } = require("../telegram/bot");
+const logger = require("../services/logger");
 
 const JWT_SECRET = process.env.JWT_SECRET || 'masterchef-canteen-super-secret';
 const upload = multer({ storage: multer.memoryStorage() });
@@ -36,11 +38,17 @@ function setupApiRoutes(app) {
   app.post("/api/auth/login", (req, res) => {
     const { password } = req.body || {};
     if (!password || password !== process.env.ADMIN_PASSWORD) {
+      logger.warn("auth.login_failed", "Invalid admin password attempt", {
+        ip: req.ip || req.headers["x-forwarded-for"] || req.socket.remoteAddress
+      });
       return res.status(401).json({ error: "Unauthorized: Invalid Admin Password" });
     }
 
     // Sign JWT with 2 hour expiration
     const token = jwt.sign({ role: "admin" }, JWT_SECRET, { expiresIn: "2h" });
+    logger.info("auth.login_success", "Admin authenticated successfully", {
+      ip: req.ip || req.headers["x-forwarded-for"] || req.socket.remoteAddress
+    });
     res.json({ success: true, token });
   });
 
@@ -249,6 +257,7 @@ function setupApiRoutes(app) {
       }, weekKey);
 
       if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath);
+      logger.info("menu.uploaded", `Menu uploaded for Week ${weekKey}`, { weekKey, fileName: uploadedFile.originalname });
       res.json({
         success: true,
         message: `Menu for Week ${weekKey} uploaded and parsed successfully!`,
@@ -258,6 +267,7 @@ function setupApiRoutes(app) {
     } catch (err) {
       console.error("Upload error:", err);
       if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath);
+      logger.info("menu.uploaded", `Menu uploaded for Week ${weekKey}`, { weekKey, fileName: uploadedFile.originalname });
       res.status(500).json({ error: "Failed to process menu file: " + err.message });
     }
   });
@@ -376,7 +386,68 @@ function setupApiRoutes(app) {
     }
   });
 
-  console.log("🌐 API Routes initialized with History support");
+  // API: System & Resource Insights
+  app.get("/api/system/stats", async (req, res) => {
+    try {
+      const memoryUsage = process.memoryUsage();
+      const uptimeSec = Math.floor(process.uptime());
+      const hours = Math.floor(uptimeSec / 3600);
+      const minutes = Math.floor((uptimeSec % 3600) / 60);
+      const seconds = uptimeSec % 60;
+
+      const isDbConnected = mongoose.connection && mongoose.connection.readyState === 1;
+      const userCount = isDbConnected ? await User.countDocuments().catch(() => 0) : 0;
+      const reminderCount = isDbConnected ? await User.countDocuments({ reminders: true }).catch(() => 0) : 0;
+      const menuCount = isDbConnected ? await Menu.countDocuments().catch(() => 0) : 0;
+
+      res.json({
+        success: true,
+        timestamp: new Date().toISOString(),
+        uptime: `${hours}h ${minutes}m ${seconds}s`,
+        uptimeSeconds: uptimeSec,
+        memory: {
+          rssMb: (memoryUsage.rss / 1024 / 1024).toFixed(2),
+          heapUsedMb: (memoryUsage.heapUsed / 1024 / 1024).toFixed(2),
+          heapTotalMb: (memoryUsage.heapTotal / 1024 / 1024).toFixed(2),
+          externalMb: (memoryUsage.external / 1024 / 1024).toFixed(2)
+        },
+        cpu: process.cpuUsage(),
+        environment: process.env.NODE_ENV || "development",
+        nodeVersion: process.version,
+        platform: process.platform,
+        stats: {
+          totalUsers: userCount,
+          activeReminders: reminderCount,
+          totalMenus: menuCount
+        }
+      });
+    } catch (err) {
+      console.error("System stats error:", err);
+      res.status(500).json({ error: "Failed to fetch system stats" });
+    }
+  });
+
+  // API: Query Recent Telemetry & Action Logs
+  app.get("/api/system/logs", (req, res) => {
+    try {
+      const { getRecentLogs } = require("../services/telemetry");
+      const logs = getRecentLogs({
+        severity: req.query.severity,
+        action: req.query.action,
+        chatId: req.query.chatId,
+        limit: req.query.limit || 50
+      });
+      res.json({
+        success: true,
+        count: logs.length,
+        logs
+      });
+    } catch (err) {
+      res.status(500).json({ error: "Failed to retrieve telemetry logs: " + err.message });
+    }
+  });
+
+  console.log("🌐 API Routes initialized with History support & System Insights");
 }
 
 module.exports = { setupApiRoutes };

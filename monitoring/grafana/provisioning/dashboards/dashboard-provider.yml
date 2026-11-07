@@ -1,0 +1,11 @@
+apiVersion: 1
+
+providers:
+  - name: 'MasterChef Monitoring'
+    orgId: 1
+    folder: 'MasterChef'
+    type: file
+    disableDeletion: false
+    editable: true
+    options:
+      path: /etc/grafana/provisioning/dashboards/masterchef-dashboard.json

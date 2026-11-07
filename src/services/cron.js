@@ -2,6 +2,7 @@ const cron = require("node-cron");
 const { User } = require("./models");
 const { getMenu } = require("./menu");
 const { getDay, formatMenu } = require("./utils");
+const logger = require("./logger");
 const {
   getOrCreateTodayPoll,
   getTodayPoll,
@@ -31,12 +32,35 @@ function initCron(bot) {
       const lunchTime = u.timing?.lunch || "11:00";
       const dinnerTime = u.timing?.dinner || "20:00";
 
+      let mealType = null;
+      let text = "";
+
       if (currentHHMM === breakfastTime) {
-        bot.sendMessage(u.chatId, `🌅 *Breakfast (07:30 to 09:30)*\n\n${formatMenu(d, menuDoc.data)}`, { parse_mode: "Markdown" });
+        mealType = "breakfast";
+        text = `🌅 *Breakfast (07:30 to 09:30)*\n\n${formatMenu(d, menuDoc.data)}`;
       } else if (currentHHMM === lunchTime) {
-        bot.sendMessage(u.chatId, `🍛 *Lunch (11:00 to 14:00)*\n\n${menuDoc.data[d]?.lunch || "—"}`, { parse_mode: "Markdown" });
+        mealType = "lunch";
+        text = `🍛 *Lunch (11:00 to 14:00)*\n\n${menuDoc.data[d]?.lunch || "—"}`;
       } else if (currentHHMM === dinnerTime) {
-        bot.sendMessage(u.chatId, `🍽️ *Dinner (20:00 to 22:00)*\n\n${menuDoc.data[d]?.dinner || "—"}`, { parse_mode: "Markdown" });
+        mealType = "dinner";
+        text = `🍽️ *Dinner (20:00 to 22:00)*\n\n${menuDoc.data[d]?.dinner || "—"}`;
+      }
+
+      if (mealType && text) {
+        bot.sendMessage(u.chatId, text, { parse_mode: "Markdown" }).then(() => {
+          logger.info("cron.meal_reminder_sent", `Sent ${mealType} reminder to user ${u.chatId}`, {
+            action: "cron.meal_reminder_sent",
+            chatId: u.chatId,
+            mealType,
+            scheduledTime: currentHHMM
+          });
+        }).catch(err => {
+          logger.warn("cron.meal_reminder_failed", `Failed sending ${mealType} reminder to ${u.chatId}: ${err.message}`, {
+            error: err,
+            chatId: u.chatId,
+            mealType
+          });
+        });
       }
     });
 
@@ -47,14 +71,21 @@ function initCron(bot) {
         const allUsers = await User.find({ reminders: true });
         const menuDinner = menuDoc.data[d]?.dinner || "—";
         const msg = `🍽️ *Dinner Time!* It's ${formatTime(poll.winningTime)} — time to head to the canteen!\n\n*Tonight:* ${menuDinner}`;
+        let sentCount = 0;
         for (const u of allUsers) {
           try {
             await bot.sendMessage(u.chatId, msg, { parse_mode: "Markdown" });
+            sentCount++;
           } catch (err) {
-            console.error(`Dinner reminder failed for ${u.chatId}:`, err.message);
+            logger.warn("cron.dinner_reminder_failed", `Dinner reminder failed for ${u.chatId}: ${err.message}`, { error: err, chatId: u.chatId });
           }
         }
         await markNotified();
+        logger.info("cron.group_dinner_notified", `Dispatched group dinner alert to ${sentCount} users`, {
+          action: "cron.group_dinner_notified",
+          winningTime: poll.winningTime,
+          recipients: sentCount
+        });
       }
     }
   }, { timezone: "Asia/Kolkata" });
@@ -70,15 +101,21 @@ function initCron(bot) {
       const keyboard = buildPollKeyboard({});
       const text = `🗳️ *Dinner Vote — What time tonight?*\n\nVoting closes at 7:30 PM. Tap your preferred time 👇`;
 
+      let sentCount = 0;
       for (const u of users) {
         try {
           const sent = await bot.sendMessage(u.chatId, text, { parse_mode: "Markdown", reply_markup: keyboard });
           await storeMessageId(poll.date, String(u.chatId), sent.message_id);
+          sentCount++;
         } catch (err) {
-          console.error(`Poll send failed for ${u.chatId}:`, err.message);
+          logger.warn("cron.poll_send_failed", `Poll send failed for ${u.chatId}: ${err.message}`, { error: err, chatId: u.chatId });
         }
       }
-      console.log(`🗳️ Dinner poll sent to ${users.length} users`);
+      logger.info("cron.dinner_poll_broadcast", `Dinner voting poll dispatched to ${sentCount} active subscribers`, {
+        action: "cron.dinner_poll_broadcast",
+        recipients: sentCount,
+        date: poll.date
+      });
     }, { timezone: "Asia/Kolkata" });
 
     // ── 7:30 PM IST: Close poll and announce winner ──
@@ -98,19 +135,26 @@ function initCron(bot) {
         ? `📊 *Dinner Poll Closed*\n\nNo votes cast today. Defaulting to *${formatTime(winner)}*.\n\n_You'll get a reminder at ${formatTime(winner)}!_`
         : `📊 *Dinner Poll Closed!*\n\n🏆 Tonight's dinner is at *${formatTime(winner)}*!\n\n*Results:*\n${breakdown}\n\n_See you at the canteen at ${formatTime(winner)}!_ 🍽️`;
 
+      let sentCount = 0;
       for (const u of users) {
         try {
           await bot.sendMessage(u.chatId, msg, { parse_mode: "Markdown" });
+          sentCount++;
         } catch (err) {
-          console.error(`Poll close announcement failed for ${u.chatId}:`, err.message);
+          logger.warn("cron.poll_result_failed", `Poll close announcement failed for ${u.chatId}: ${err.message}`, { error: err, chatId: u.chatId });
         }
       }
-      console.log(`📊 Dinner poll closed. Winner: ${winner} (${totalVotes} votes)`);
+      logger.info("cron.poll_winner_broadcast", `Announced dinner poll winner ${winner} (${totalVotes} votes) to ${sentCount} users`, {
+        action: "cron.poll_winner_broadcast",
+        winner,
+        totalVotes,
+        sentCount
+      });
     }, { timezone: "Asia/Kolkata" });
 
-    console.log("⏰ Cron jobs initialized (Daily meal reminders + Dinner poll ENABLED)");
+    logger.info("cron.init", "Cron jobs initialized (Daily meal reminders + Dinner poll ENABLED)");
   } else {
-    console.log("⏰ Cron jobs initialized (Daily meal reminders ACTIVE | Dinner poll DISABLED)");
+    logger.info("cron.init", "Cron jobs initialized (Daily meal reminders ACTIVE | Dinner poll DISABLED)");
   }
 }
 
