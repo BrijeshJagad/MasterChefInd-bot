@@ -4,7 +4,7 @@
   "description": "",
   "scripts": {
     "dev": "node server.js",
-    "build": "npx next build frontend",
+    "build": "npx next build frontend --webpack",
     "start": "node server.js",
     "test": "jest --runInBand",
     "desktop": "npx electron electron/main.js",

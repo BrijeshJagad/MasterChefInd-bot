@@ -8,6 +8,7 @@ import {
 } from '@mui/material';
 import HistoryIcon from '@mui/icons-material/History';
 import CloudUploadIcon from '@mui/icons-material/FileUploadOutlined';
+import InsightsIcon from '@mui/icons-material/Insights';
 import TelegramIcon from '@mui/icons-material/Telegram';
 import MoonIcon from '@mui/icons-material/Brightness4';
 import SunIcon from '@mui/icons-material/Brightness7';
@@ -62,6 +63,38 @@ export default function Sidebar({ weeks, selectedWeek, onSelectWeek, mobileOpen,
                 sx={{
                   '& .MuiListItemText-primary': {
                     fontWeight: pathname === '/announcements' ? 900 : 500,
+                    fontSize: '0.85rem'
+                  }
+                }}
+              />
+            </ListItemButton>
+          </ListItem>
+
+          <ListItem disablePadding sx={{ mb: 1 }}>
+            <ListItemButton
+              component={Link}
+              href="/insights"
+              selected={pathname === '/insights'}
+              onClick={() => onMobileToggle && onMobileToggle()}
+              sx={{
+                borderRadius: '10px',
+                py: 1,
+                bgcolor: pathname === '/insights' ? 'rgba(67, 24, 255, 0.1)' : 'transparent',
+                '&.Mui-selected': {
+                  bgcolor: 'primary.main',
+                  color: 'white',
+                  '&:hover': { bgcolor: 'primary.dark' }
+                }
+              }}
+            >
+              <ListItemIcon sx={{ minWidth: 32, color: pathname === '/insights' ? 'primary.main' : 'inherit' }}>
+                <InsightsIcon sx={{ fontSize: '1.1rem' }} />
+              </ListItemIcon>
+              <ListItemText
+                primary="System Insights"
+                sx={{
+                  '& .MuiListItemText-primary': {
+                    fontWeight: pathname === '/insights' ? 900 : 500,
                     fontSize: '0.85rem'
                   }
                 }}
